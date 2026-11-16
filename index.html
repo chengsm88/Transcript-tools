@@ -1,0 +1,1424 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Teams 即時多國語言會議翻譯 | Live Transcript & Translation</title>
+
+  <!-- Google Fonts: Inter & Noto Sans TC for crisp Fluent UI typography -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+TC:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+  <!-- Tailwind CSS via CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Segoe UI"', '"Inter"', '"Noto Sans TC"', 'system-ui', '-apple-system', 'sans-serif'],
+          },
+          colors: {
+            teams: {
+              canvas: '#F5F5F5',
+              surface: '#FFFFFF',
+              hover: '#F0F0F0',
+              border: '#E0E0E0',
+              subtle: '#EBEBEB',
+              primary: '#5B5FC7',
+              primaryHover: '#4F52B2',
+              primaryLight: '#EEF0FC',
+              text: '#242424',
+              muted: '#616161',
+              danger: '#C4314B',
+              avatarYellowBg: '#FDE7B2',
+              avatarYellowText: '#7A5901',
+              avatarGrayBg: '#E1DFDD'
+            }
+          }
+        }
+      }
+    };
+  </script>
+
+  <style>
+    /* Fluent UI Base Styling */
+    body {
+      font-family: 'Segoe UI', 'Inter', 'Noto Sans TC', system-ui, -apple-system, sans-serif;
+      background-color: #F5F5F5;
+      color: #242424;
+      overflow-x: hidden;
+    }
+
+    /* Teams Fluent Popover Elevation */
+    .fluent-popover {
+      box-shadow: 0 8px 28px rgba(0, 0, 0, 0.14), 0 1px 4px rgba(0, 0, 0, 0.08);
+      border: 1px solid #E0E0E0;
+      transform-origin: top right;
+      transition: opacity 0.16s ease, transform 0.16s ease;
+    }
+
+    .fluent-popover.popover-hidden {
+      opacity: 0;
+      transform: scale(0.96) translateY(-4px);
+      pointer-events: none;
+    }
+
+    /* Teams Card Elevation */
+    .fluent-panel {
+      box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06), 0 0 1px rgba(0, 0, 0, 0.1);
+    }
+
+    /* Audio Waveform Bars inside Mic Button */
+    @keyframes teamsWave {
+      0%, 100% { height: 4px; }
+      50% { height: 15px; }
+    }
+
+    .wave-bar {
+      width: 2.5px;
+      height: 4px;
+      border-radius: 9999px;
+      background-color: currentColor;
+      transition: height 0.15s ease;
+    }
+
+    .recording .wave-bar:nth-child(1) { animation: teamsWave 0.7s ease-in-out infinite 0.05s; }
+    .recording .wave-bar:nth-child(2) { animation: teamsWave 0.5s ease-in-out infinite 0.2s; }
+    .recording .wave-bar:nth-child(3) { animation: teamsWave 0.8s ease-in-out infinite 0.1s; }
+    .recording .wave-bar:nth-child(4) { animation: teamsWave 0.6s ease-in-out infinite 0.25s; }
+
+    /* Subtle Fluent Shimmer for Translating State */
+    @keyframes fluentShimmer {
+      0% { background-position: -200% 0; }
+      100% { background-position: 200% 0; }
+    }
+
+    .fluent-shimmer {
+      background: linear-gradient(90deg, #EBEBEB 25%, #E0E2F8 50%, #EBEBEB 75%);
+      background-size: 200% 100%;
+      animation: fluentShimmer 1.3s infinite linear;
+    }
+
+    /* Fluent Thin Scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #D1D1D1;
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #A6A6A6;
+    }
+
+    /* Built-in Tertiary Floating Mini-Overlay (Fallback when PiP/Popup blocked) */
+    #floatingOverlayCard {
+      resize: both;
+      overflow: hidden;
+      min-width: 290px;
+      min-height: 170px;
+      max-width: calc(100vw - 1.5rem);
+      max-height: calc(100vh - 2rem);
+      box-shadow: 0 14px 38px rgba(0, 0, 0, 0.22), 0 2px 8px rgba(0, 0, 0, 0.12);
+    }
+  </style>
+</head>
+<body class="bg-teams-canvas text-teams-text min-h-screen flex flex-col selection:bg-teams-primary/20 selection:text-teams-primary">
+
+  <!-- Non-blocking Fluent Toast Container (Replaces alert() completely) -->
+  <div id="toastContainer" class="fixed top-4 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-2 max-w-[92vw] pointer-events-none"></div>
+
+  <!-- Main Centered Teams Transcript Workspace -->
+  <div class="flex-1 w-full max-w-3xl mx-auto px-2 sm:px-6 py-2 sm:py-5 flex flex-col">
+
+    <!-- Primary White Teams Transcript Card (#FFFFFF) -->
+    <div class="relative flex-1 bg-teams-surface rounded-xl sm:rounded-2xl border border-teams-border fluent-panel flex flex-col overflow-hidden min-h-[calc(100vh-1rem)] sm:min-h-[calc(100vh-2.5rem)] max-h-[calc(100vh-1rem)] sm:max-h-[calc(100vh-2.5rem)]">
+
+      <!-- =================================================================== -->
+      <!-- 1. MINIMALIST TEAMS TRANSCRIPT HEADER                               -->
+      <!-- =================================================================== -->
+      <header class="relative z-30 flex items-center justify-between gap-2 px-4 sm:px-6 py-3 bg-teams-surface border-b border-teams-subtle shrink-0">
+        <!-- Left: "Transcript" Title + Active Language Pair Pill + Live Status -->
+        <div class="flex items-center gap-2 min-w-0 flex-wrap">
+          <h1 class="text-[18px] sm:text-[20px] font-bold tracking-tight text-teams-text">
+            Transcript
+          </h1>
+
+          <!-- Active Language Pair Pill -->
+          <span id="headerPairPill" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-teams-primaryLight text-teams-primary border border-teams-primary/20">
+            英文 ➔ 廣東話 + 普通話
+          </span>
+
+          <!-- Live Status Pill -->
+          <div id="liveStatusPill" class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-[#F5F5F5] text-teams-muted border border-teams-border transition-colors">
+            <span id="liveStatusDot" class="w-2 h-2 rounded-full bg-emerald-500"></span>
+            <span id="liveStatusLabel">就緒</span>
+          </div>
+        </div>
+
+        <!-- Right: Pop-up 懸浮視窗, Copy All, Settings Gear (⚙), Clear -->
+        <div class="flex items-center gap-1 sm:gap-1.5 shrink-0">
+          <!-- Prominent Pop-up Floating Window Button -->
+          <button
+            id="popupWindowBtn"
+            type="button"
+            aria-label="開啟 Pop-up 懸浮翻譯視窗"
+            title="開啟 Pop-up 懸浮翻譯視窗"
+            class="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-semibold text-teams-primary bg-teams-primaryLight hover:bg-teams-primary hover:text-white border border-teams-primary/30 focus:outline-none focus:ring-2 focus:ring-teams-primary/40 transition"
+          >
+            <svg class="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
+            </svg>
+            <span>Pop-up 懸浮視窗</span>
+          </button>
+
+          <!-- Copy All Sentences Button -->
+          <button
+            id="copyAllTranscriptBtn"
+            type="button"
+            aria-label="複製全部譯文"
+            title="複製全部"
+            class="inline-flex items-center gap-1 px-2 py-2 rounded-lg text-xs font-medium text-teams-muted hover:text-teams-text hover:bg-teams-hover focus:outline-none focus:ring-2 focus:ring-teams-primary/40 transition"
+          >
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+            </svg>
+            <span class="hidden md:inline">複製全部</span>
+          </button>
+
+          <!-- Settings Gear Button -->
+          <button
+            id="settingsGearBtn"
+            type="button"
+            aria-label="語言與顯示設定"
+            aria-expanded="false"
+            title="語言與顯示設定"
+            class="p-2 rounded-lg text-teams-muted hover:text-teams-text hover:bg-teams-hover focus:outline-none focus:ring-2 focus:ring-teams-primary/40 transition"
+          >
+            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+              <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+          </button>
+
+          <!-- Clear Button -->
+          <button
+            id="clearTranscriptBtn"
+            type="button"
+            aria-label="清除紀錄"
+            title="清除"
+            class="inline-flex items-center gap-1 px-2 py-2 rounded-lg text-xs font-medium text-teams-muted hover:text-teams-text hover:bg-teams-hover focus:outline-none focus:ring-2 focus:ring-teams-primary/40 transition"
+          >
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+            <span id="clearBtnLabel" class="hidden sm:inline">清除</span>
+          </button>
+        </div>
+
+        <!-- ================================================================= -->
+        <!-- TEAMS FLOATING LANGUAGE & DISPLAY POPOVER (⚙)                     -->
+        <!-- ================================================================= -->
+        <div
+          id="settingsPopover"
+          role="dialog"
+          aria-label="Transcript Language Settings"
+          class="fluent-popover popover-hidden absolute top-[54px] right-3 sm:right-5 w-[320px] sm:w-[350px] max-w-[calc(100vw-1.5rem)] bg-white rounded-xl p-4 space-y-3.5 z-40"
+        >
+          <!-- Spoken Language Dropdown -->
+          <div class="space-y-1.5">
+            <label for="popoverSpokenSelect" class="flex items-center gap-2 text-xs font-semibold text-teams-muted">
+              <svg class="w-4 h-4 text-teams-text shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
+              </svg>
+              <span>Spoken language (說話語言)</span>
+            </label>
+            <select
+              id="popoverSpokenSelect"
+              class="w-full px-3 py-2 rounded-lg text-[13px] font-medium bg-[#F5F5F5] border border-teams-border text-teams-text focus:bg-white focus:border-teams-primary focus:outline-none"
+            >
+              <option value="auto">自動偵測 Auto</option>
+              <option value="zh-HK">廣東話 Cantonese (zh-HK)</option>
+              <option value="zh-CN">中文 Chinese (zh-CN)</option>
+              <option value="en-US">英文 English (en-US)</option>
+              <option value="ja-JP">日文 Japanese (ja-JP)</option>
+              <option value="ko-KR">韓文 Korean (ko-KR)</option>
+              <option value="fr-FR">法文 French (fr-FR)</option>
+              <option value="de-DE">德文 German (de-DE)</option>
+              <option value="es-ES">西班牙文 Spanish (es-ES)</option>
+            </select>
+          </div>
+
+          <!-- Transcript Language Dropdown -->
+          <div class="space-y-1.5">
+            <label for="popoverTargetSelect" class="flex items-center gap-2 text-xs font-semibold text-teams-muted">
+              <span class="w-4 h-4 flex items-center justify-center text-[12px] font-bold text-teams-text select-none">aあ</span>
+              <span>Transcript language (翻譯語言)</span>
+            </label>
+            <select
+              id="popoverTargetSelect"
+              class="w-full px-3 py-2 rounded-lg text-[13px] font-medium bg-[#F5F5F5] border border-teams-border text-teams-text focus:bg-white focus:border-teams-primary focus:outline-none"
+            >
+              <option value="BOTH">雙語即時輸出（自動搭配兩種語言）</option>
+              <option value="yue">廣東話 Cantonese</option>
+              <option value="zh">中文 Chinese</option>
+              <option value="en">英文 English</option>
+              <option value="ja">日文 Japanese</option>
+              <option value="ko">韓文 Korean</option>
+              <option value="fr">法文 French</option>
+              <option value="de">德文 German</option>
+              <option value="es">西班牙文 Spanish</option>
+            </select>
+          </div>
+
+          <div class="border-t border-teams-subtle"></div>
+
+          <!-- Toggle 1: 同時顯示原文 -->
+          <div class="flex items-center justify-between gap-3">
+            <div>
+              <div class="text-[13px] font-medium text-teams-text">同時顯示原文</div>
+              <div class="text-[11px] text-teams-muted">Show original recognized text</div>
+            </div>
+            <button
+              id="toggleShowBothBtn"
+              type="button"
+              role="switch"
+              aria-checked="true"
+              class="relative inline-flex h-[22px] w-[42px] shrink-0 items-center rounded-full bg-teams-primary transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-teams-primary/40"
+            >
+              <span id="toggleShowBothKnob" class="inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform duration-200 translate-x-[22px]"></span>
+            </button>
+          </div>
+
+          <!-- Toggle 2: 廣東話口語模式 -->
+          <div class="flex items-center justify-between gap-3">
+            <div>
+              <div class="text-[13px] font-medium text-teams-text">廣東話口語模式</div>
+              <div class="text-[11px] text-teams-muted">Colloquial Cantonese vs written</div>
+            </div>
+            <button
+              id="toggleCantoneseColloquialBtn"
+              type="button"
+              role="switch"
+              aria-checked="true"
+              class="relative inline-flex h-[22px] w-[42px] shrink-0 items-center rounded-full bg-teams-primary transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-teams-primary/40"
+            >
+              <span id="toggleCantoneseColloquialKnob" class="inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform duration-200 translate-x-[22px]"></span>
+            </button>
+          </div>
+
+          <!-- Toggle 3: 自動語音朗讀 -->
+          <div class="flex items-center justify-between gap-3">
+            <div>
+              <div class="text-[13px] font-medium text-teams-text">自動語音朗讀</div>
+              <div class="text-[11px] text-teams-muted">Auto TTS readout of translation</div>
+            </div>
+            <button
+              id="toggleAutoSpeakBtn"
+              type="button"
+              role="switch"
+              aria-checked="false"
+              class="relative inline-flex h-[22px] w-[42px] shrink-0 items-center rounded-full bg-[#C7C7C7] transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-teams-primary/40"
+            >
+              <span id="toggleAutoSpeakKnob" class="inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform duration-200 translate-x-[3px]"></span>
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <!-- =================================================================== -->
+      <!-- 2. STREAMLINED TEAMS LANGUAGE BAR + ONE-CLICK DIRECTION PILLS       -->
+      <!-- =================================================================== -->
+      <section aria-label="語言方向選擇" class="bg-[#FAFAFA] border-b border-teams-border px-4 sm:px-6 py-3 space-y-2.5 shrink-0">
+        <!-- Direct Spoken <-> Transcript Selector + Swap (⇄) -->
+        <div class="flex items-center gap-2">
+          <!-- Spoken Language Selector -->
+          <div class="flex-1 min-w-0">
+            <label for="barSpokenSelect" class="block text-[11px] font-semibold text-teams-muted mb-1">
+              Spoken language · 說話語言
+            </label>
+            <select
+              id="barSpokenSelect"
+              class="w-full px-3 py-2 rounded-lg text-[13px] font-semibold bg-white border border-teams-border text-teams-text hover:border-teams-primary/60 focus:border-teams-primary focus:ring-2 focus:ring-teams-primary/20 focus:outline-none transition"
+            >
+              <option value="auto">自動偵測 Auto</option>
+              <option value="zh-HK">廣東話 Cantonese (zh-HK)</option>
+              <option value="zh-CN">中文 Chinese (zh-CN)</option>
+              <option value="en-US">英文 English (en-US)</option>
+              <option value="ja-JP">日文 Japanese (ja-JP)</option>
+              <option value="ko-KR">韓文 Korean (ko-KR)</option>
+              <option value="fr-FR">法文 French (fr-FR)</option>
+              <option value="de-DE">德文 German (de-DE)</option>
+              <option value="es-ES">西班牙文 Spanish (es-ES)</option>
+            </select>
+          </div>
+
+          <!-- Swap Button (⇄) -->
+          <button
+            id="swapLangBtn"
+            type="button"
+            title="互換說話與翻譯語言"
+            aria-label="互換說話與翻譯語言"
+            class="mt-4 p-2.5 rounded-lg bg-white border border-teams-border text-teams-primary hover:bg-teams-primaryLight hover:border-teams-primary/40 active:scale-95 transition shrink-0 shadow-2xs"
+          >
+            <span class="text-base font-bold leading-none select-none">⇄</span>
+          </button>
+
+          <!-- Transcript Language Selector -->
+          <div class="flex-1 min-w-0">
+            <label for="barTargetSelect" class="block text-[11px] font-semibold text-teams-muted mb-1">
+              Transcript language · 翻譯語言
+            </label>
+            <select
+              id="barTargetSelect"
+              class="w-full px-3 py-2 rounded-lg text-[13px] font-semibold bg-white border border-teams-border text-teams-primary hover:border-teams-primary/60 focus:border-teams-primary focus:ring-2 focus:ring-teams-primary/20 focus:outline-none transition"
+            >
+              <option value="BOTH">雙語即時輸出（自動搭配兩種語言）</option>
+              <option value="yue">廣東話 Cantonese</option>
+              <option value="zh">中文 Chinese</option>
+              <option value="en">英文 English</option>
+              <option value="ja">日文 Japanese</option>
+              <option value="ko">韓文 Korean</option>
+              <option value="fr">法文 French</option>
+              <option value="de">德文 German</option>
+              <option value="es">西班牙文 Spanish</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- One-Click Quick Direction Pills -->
+        <div class="flex items-center gap-1.5 flex-wrap">
+          <button
+            type="button"
+            data-pair="auto:yue"
+            class="pair-pill px-2.5 py-1.5 rounded-full text-xs font-semibold border transition active:scale-95"
+          >
+            Auto ➔ 廣東話
+          </button>
+          <button
+            type="button"
+            data-pair="en-US:BOTH"
+            class="pair-pill px-2.5 py-1.5 rounded-full text-xs font-semibold border transition active:scale-95"
+          >
+            英文 ➔ 廣東話 + 中文
+          </button>
+          <button
+            type="button"
+            data-pair="zh-CN:BOTH"
+            class="pair-pill px-2.5 py-1.5 rounded-full text-xs font-semibold border transition active:scale-95"
+          >
+            中文 ➔ 廣東話 + 英文
+          </button>
+          <button
+            type="button"
+            data-pair="zh-HK:BOTH"
+            class="pair-pill px-2.5 py-1.5 rounded-full text-xs font-semibold border transition active:scale-95"
+          >
+            廣東話 ➔ 英文 + 中文
+          </button>
+          <button
+            type="button"
+            data-pair="ja-JP:yue"
+            class="pair-pill px-2.5 py-1.5 rounded-full text-xs font-semibold border transition active:scale-95"
+          >
+            日文 ➔ 廣東話
+          </button>
+          <button
+            type="button"
+            data-pair="ko-KR:yue"
+            class="pair-pill px-2.5 py-1.5 rounded-full text-xs font-semibold border transition active:scale-95"
+          >
+            韓文 ➔ 廣東話
+          </button>
+          <button
+            type="button"
+            data-pair="fr-FR:yue"
+            class="pair-pill px-2.5 py-1.5 rounded-full text-xs font-semibold border transition active:scale-95"
+          >
+            法文 ➔ 廣東話
+          </button>
+          <button
+            type="button"
+            data-pair="de-DE:yue"
+            class="pair-pill px-2.5 py-1.5 rounded-full text-xs font-semibold border transition active:scale-95"
+          >
+            德文 ➔ 廣東話
+          </button>
+          <button
+            type="button"
+            data-pair="es-ES:yue"
+            class="pair-pill px-2.5 py-1.5 rounded-full text-xs font-semibold border transition active:scale-95"
+          >
+            西班牙文 ➔ 廣東話
+          </button>
+          <button
+            type="button"
+            data-pair="zh-HK:ja"
+            class="pair-pill px-2.5 py-1.5 rounded-full text-xs font-semibold border transition active:scale-95"
+          >
+            廣東話 ➔ 日文
+          </button>
+          <button
+            type="button"
+            data-pair="zh-HK:ko"
+            class="pair-pill px-2.5 py-1.5 rounded-full text-xs font-semibold border transition active:scale-95"
+          >
+            廣東話 ➔ 韓文
+          </button>
+          <button
+            type="button"
+            data-pair="zh-HK:fr"
+            class="pair-pill px-2.5 py-1.5 rounded-full text-xs font-semibold border transition active:scale-95"
+          >
+            廣東話 ➔ 法文
+          </button>
+          <button
+            type="button"
+            data-pair="zh-HK:de"
+            class="pair-pill px-2.5 py-1.5 rounded-full text-xs font-semibold border transition active:scale-95"
+          >
+            廣東話 ➔ 德文
+          </button>
+          <button
+            type="button"
+            data-pair="zh-HK:es"
+            class="pair-pill px-2.5 py-1.5 rounded-full text-xs font-semibold border transition active:scale-95"
+          >
+            廣東話 ➔ 西班牙文
+          </button>
+        </div>
+      </section>
+
+      <!-- Subtle Microphone Permission / Fallback Banner -->
+      <div id="micFallbackBanner" class="hidden px-4 sm:px-6 py-2.5 bg-[#FFF8EB] border-b border-[#F3D69A] flex items-center justify-between gap-3 text-xs text-[#6E4B00] shrink-0">
+        <span id="micFallbackText">未偵測到麥克風權限，你可以直接使用下方輸入框輸入文字按 Enter 即時翻譯。</span>
+        <button id="dismissFallbackBtn" type="button" class="text-[#6E4B00] hover:underline font-semibold shrink-0">知道了</button>
+      </div>
+
+      <!-- =================================================================== -->
+      <!-- 3. CLEAN TEAMS DUAL-LINE TRANSCRIPT STREAM                          -->
+      <!-- =================================================================== -->
+      <main id="transcriptFeedContainer" class="flex-1 overflow-y-auto px-4 sm:px-6 py-4 space-y-4 scroll-smooth">
+        <!-- Finalized Transcript Entries -->
+        <div id="transcriptFeedList" class="space-y-4"></div>
+
+        <!-- Translating Pending Shimmer Card -->
+        <div id="translatingIndicator" class="hidden rounded-xl border border-teams-subtle bg-[#FAFAFA] px-4 py-3 space-y-2">
+          <div class="flex items-center gap-2 text-xs">
+            <span id="pendingPairBadge" class="font-semibold text-teams-primary">廣東話 ➔ 英文</span>
+            <span class="text-teams-muted">正在翻譯...</span>
+          </div>
+          <div class="h-4 w-3/4 rounded fluent-shimmer"></div>
+          <div id="pendingOriginalText" class="text-[14px] text-teams-muted"></div>
+        </div>
+
+        <!-- Live Interim Speech Bubble at Bottom of Stream -->
+        <div id="interimSpeechBubble" class="hidden rounded-xl bg-teams-primaryLight/75 border border-teams-primary/30 px-4 py-3 space-y-1.5">
+          <div class="flex items-center gap-2 flex-wrap">
+            <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-teams-primary text-white">
+              <span class="w-1.5 h-1.5 rounded-full bg-white animate-ping"></span>
+              即時識別中
+            </span>
+            <span id="interimPairLabel" class="text-xs font-semibold text-teams-primary">English (en-US)</span>
+          </div>
+          <p id="interimLiveText" class="text-[14px] text-teams-muted leading-relaxed">
+            正在聆聽語音...
+          </p>
+          <div id="interimLiveTranslations" class="space-y-1 pt-0.5"></div>
+        </div>
+      </main>
+
+      <!-- =================================================================== -->
+      <!-- 4. MINIMALIST BOTTOM CONTROL BAR                                    -->
+      <!-- =================================================================== -->
+      <footer class="bg-teams-surface border-t border-teams-border px-4 sm:px-6 py-3.5 shrink-0">
+        <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
+          <!-- Large Teams Purple Microphone Button -->
+          <button
+            id="teamsMicBtn"
+            type="button"
+            class="inline-flex items-center justify-center gap-2.5 px-5 py-3 rounded-xl text-sm font-semibold text-white bg-teams-primary hover:bg-teams-primaryHover active:scale-[0.99] shadow-sm transition shrink-0"
+          >
+            <!-- Mic Icon -->
+            <svg id="dockMicIcon" class="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 18.75a6 6 0 006-6v-1.5m-6 7.5a6 6 0 01-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 01-3-3V4.5a3 3 0 116 0v8.25a3 3 0 01-3 3z" />
+            </svg>
+            <!-- Live Animated Sound Bars -->
+            <span id="dockWaveBars" class="hidden items-center gap-0.5 h-4 text-white" aria-hidden="true">
+              <span class="wave-bar"></span>
+              <span class="wave-bar"></span>
+              <span class="wave-bar"></span>
+              <span class="wave-bar"></span>
+            </span>
+            <span id="dockMicLabel">開始說話</span>
+          </button>
+
+          <!-- Compact Text Input Box + Quick Sample Button + Send Button -->
+          <div class="flex-1 flex items-center gap-2">
+            <input
+              id="manualTextInput"
+              type="text"
+              placeholder="或直接輸入文字按 Enter 翻譯..."
+              class="flex-1 min-w-0 px-3.5 py-3 rounded-xl text-[14px] bg-[#F5F5F5] focus:bg-white text-teams-text placeholder-teams-muted border border-teams-border focus:border-teams-primary focus:ring-2 focus:ring-teams-primary/20 focus:outline-none transition"
+            />
+            <button
+              id="samplePhraseBtn"
+              type="button"
+              title="根據目前說話語言插入測試句子"
+              class="px-3 py-3 rounded-xl text-xs font-semibold text-teams-primary bg-teams-primaryLight hover:bg-teams-primary/15 border border-teams-primary/25 active:scale-95 transition shrink-0"
+            >
+              試講一句
+            </button>
+            <button
+              id="sendTextBtn"
+              type="button"
+              class="px-4 py-3 rounded-xl text-sm font-semibold text-white bg-teams-primary hover:bg-teams-primaryHover active:scale-95 transition shrink-0"
+            >
+              翻譯
+            </button>
+          </div>
+        </div>
+      </footer>
+
+    </div>
+  </div>
+
+  <!-- ======================================================================= -->
+  <!-- TERTIARY FALLBACK: DRAGGABLE & RESIZABLE FLOATING MINI-OVERLAY          -->
+  <!-- ======================================================================= -->
+  <aside
+    id="floatingOverlayCard"
+    aria-label="懸浮即時翻譯視窗"
+    class="hidden fixed bottom-20 right-3 sm:right-6 z-50 w-[360px] sm:w-[440px] h-[250px] rounded-2xl border border-[#3B3B45] bg-[#1B1B1F] text-white flex-col select-none transition-colors"
+  >
+    <!-- Draggable Overlay Top Bar -->
+    <div
+      id="overlayDragHandle"
+      class="flex items-center justify-between gap-1.5 px-3 py-2 bg-[#26262C] border-b border-white/10 cursor-move shrink-0"
+    >
+      <div class="flex items-center gap-1.5 min-w-0">
+        <span class="text-white/50 text-xs" aria-hidden="true">⋮⋮</span>
+        <span id="overlayPairBadge" class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-teams-primary text-white truncate">
+          廣東話 ➔ 英文
+        </span>
+      </div>
+
+      <!-- Mini Controls: Mic, Light/Dark Toggle, A-, A+, Close -->
+      <div class="flex items-center gap-1 shrink-0">
+        <button
+          id="overlayMicBtn"
+          type="button"
+          title="開始 / 停止說話"
+          class="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-semibold bg-teams-primary hover:bg-teams-primaryHover text-white transition"
+        >
+          <span id="overlayMicDot" class="w-1.5 h-1.5 rounded-full bg-white"></span>
+          <span id="overlayMicLabel">開始說話</span>
+        </button>
+
+        <button
+          id="overlayThemeBtn"
+          type="button"
+          title="切換淺色 / 深色字幕背景"
+          class="px-1.5 py-1 rounded-md text-[11px] font-medium bg-white/10 hover:bg-white/20 transition"
+        >
+          ☀️
+        </button>
+
+        <button
+          id="overlayFontDecBtn"
+          type="button"
+          title="縮小字體"
+          class="px-1.5 py-1 rounded-md text-[11px] font-bold bg-white/10 hover:bg-white/20 transition"
+        >
+          A-
+        </button>
+
+        <button
+          id="overlayFontIncBtn"
+          type="button"
+          title="放大字體"
+          class="px-1.5 py-1 rounded-md text-[11px] font-bold bg-white/10 hover:bg-white/20 transition"
+        >
+          A+
+        </button>
+
+        <button
+          id="overlayCloseBtn"
+          type="button"
+          title="關閉懸浮視窗"
+          class="p-1 rounded-md text-xs opacity-75 hover:opacity-100 hover:bg-white/10 transition"
+        >
+          ✕
+        </button>
+      </div>
+    </div>
+
+    <!-- Overlay Content Stream (Zero Timestamps) -->
+    <div id="overlayFeedBody" class="flex-1 overflow-y-auto px-3.5 py-2.5 space-y-2.5 select-text">
+      <div id="overlayEmptyHint" class="h-full flex items-center justify-center text-xs opacity-65 text-center px-3">
+        點擊「開始說話」，即時翻譯句子將會同步顯示於此懸浮視窗
+      </div>
+      <div id="overlaySentencesList" class="space-y-2.5"></div>
+      <div id="overlayInterimBox" class="hidden rounded-lg px-2.5 py-1.5 bg-teams-primary/20 border border-teams-primary/40 text-xs space-y-1">
+        <div>
+          <span class="font-semibold text-[#A5A9FF] mr-1">聆聽中：</span>
+          <span id="overlayInterimText"></span>
+        </div>
+        <div id="overlayInterimTrans" class="space-y-0.5 text-[13px] font-medium"></div>
+      </div>
+    </div>
+  </aside>
+
+  <script>
+    (function () {
+      'use strict';
+      const apiKey = "";
+      const GEMINI_MODEL = "gemini-2.5-flash";
+
+      const SPOKEN_LANGUAGES = {
+        "auto": { shortName: "Auto", engineLabel: "自動偵測 (Auto)", fullName: "Auto-detected language (Cantonese, Mandarin Chinese, English, Japanese, Korean, French, German, or Spanish)", canonicalTarget: "auto", otherTargets: ["yue", "en"], gtxSl: "auto", samples: ["Good morning everyone, let's start today's international sync meeting.", "唔該幫手睇下聽日下晝個會議議程有冇需要再改。", "本日の会議の資料を共有いたしますので、ご確認ください。"] },
+        "zh-HK": { shortName: "廣東話", engineLabel: "廣東話 (zh-HK)", fullName: "Hong Kong Cantonese (zh-HK)", canonicalTarget: "yue", otherTargets: ["en", "zh"], gtxSl: "zh-TW", samples: ["唔該幫手睇下聽日下晝個會議議程有冇需要再改。"] },
+        "zh-CN": { shortName: "中文", engineLabel: "中文 (zh-CN)", fullName: "Mandarin Chinese (zh-CN)", canonicalTarget: "zh", otherTargets: ["yue", "en"], gtxSl: "zh-CN", samples: ["大家好，请帮忙确认一下明天下午会议的最终方案和报价。"] },
+        "en-US": { shortName: "英文", engineLabel: "English (en-US)", fullName: "English (en-US)", canonicalTarget: "en", otherTargets: ["yue", "zh"], gtxSl: "en", samples: ["Good morning everyone, could you please share the updated schedule for tomorrow's meeting?"] },
+        "ja-JP": { shortName: "日文", engineLabel: "日本語 (ja-JP)", fullName: "Japanese (ja-JP)", canonicalTarget: "ja", otherTargets: ["yue", "en"], gtxSl: "ja", samples: ["おはようございます。明日の午後に行われる会議のスケジュールを確認させてください。"] },
+        "ko-KR": { shortName: "韓文", engineLabel: "한국어 (ko-KR)", fullName: "Korean (ko-KR)", canonicalTarget: "ko", otherTargets: ["yue", "en"], gtxSl: "ko", samples: ["안녕하세요, 내일 오후 회의 일정과 최종 제안서를 확인해 주시기 바랍니다."] },
+        "fr-FR": { shortName: "法文", engineLabel: "Français (fr-FR)", fullName: "French (fr-FR)", canonicalTarget: "fr", otherTargets: ["yue", "en"], gtxSl: "fr", samples: ["Bonjour à tous, pourriez-vous confirmer l'ordre du jour de la réunion de demain après-midi ?"] },
+        "de-DE": { shortName: "德文", engineLabel: "Deutsch (de-DE)", fullName: "German (de-DE)", canonicalTarget: "de", otherTargets: ["yue", "en"], gtxSl: "de", samples: ["Guten Morgen zusammen, könnten Sie bitte den Zeitplan für das morgige Meeting bestätigen?"] },
+        "es-ES": { shortName: "西班牙文", engineLabel: "Español (es-ES)", fullName: "Spanish (es-ES)", canonicalTarget: "es", otherTargets: ["yue", "en"], gtxSl: "es", samples: ["Buenos días a todos, ¿podrían confirmar la agenda para la reunión de mañana por la tarde?"] }
+      };
+
+      const TARGET_LANGUAGES = {
+        "yue": { shortName: "廣東話", badgeName: "廣東話", ttsLang: "zh-HK", gtxCode: "zh-TW", spokenCode: "zh-HK" },
+        "zh": { shortName: "中文", badgeName: "中文", ttsLang: "zh-CN", gtxCode: "zh-CN", spokenCode: "zh-CN" },
+        "en": { shortName: "英文", badgeName: "English", ttsLang: "en-US", gtxCode: "en", spokenCode: "en-US" },
+        "ja": { shortName: "日文", badgeName: "日本語", ttsLang: "ja-JP", gtxCode: "ja", spokenCode: "ja-JP" },
+        "ko": { shortName: "韓文", badgeName: "한국어", ttsLang: "ko-KR", gtxCode: "ko", spokenCode: "ko-KR" },
+        "fr": { shortName: "法文", badgeName: "Français", ttsLang: "fr-FR", gtxCode: "fr", spokenCode: "fr-FR" },
+        "de": { shortName: "德文", badgeName: "Deutsch", ttsLang: "de-DE", gtxCode: "de", spokenCode: "de-DE" },
+        "es": { shortName: "西班牙文", badgeName: "Español", ttsLang: "es-ES", gtxCode: "es", spokenCode: "es-ES" }
+      };
+
+      const state = {
+        spokenLang: "en-US",
+        targetLang: "BOTH",
+        showBoth: true,
+        cantoneseColloquial: true,
+        autoSpeak: false,
+        isRecording: false,
+        speechSupported: false,
+        recognition: null,
+        recognitionSessionId: 0,
+        interimBuffer: "",
+        liveInterimTranslations: {},
+        interimDebounceTimer: null,
+        silenceCommitTimer: null,
+        restartTimer: null,
+        lastCommittedText: "",
+        lastCommittedAt: 0,
+        sampleCursor: 0,
+        clearPending: false,
+        clearTimer: null,
+        popupMode: "none",
+        popupWindowRef: null,
+        popupDarkTheme: true,
+        popupFontSize: 18,
+        entries: []
+      };
+
+      const els = {
+        toastContainer: document.getElementById("toastContainer"),
+        headerPairPill: document.getElementById("headerPairPill"),
+        liveStatusPill: document.getElementById("liveStatusPill"),
+        liveStatusDot: document.getElementById("liveStatusDot"),
+        liveStatusLabel: document.getElementById("liveStatusLabel"),
+        popupWindowBtn: document.getElementById("popupWindowBtn"),
+        copyAllTranscriptBtn: document.getElementById("copyAllTranscriptBtn"),
+        settingsGearBtn: document.getElementById("settingsGearBtn"),
+        settingsPopover: document.getElementById("settingsPopover"),
+        popoverSpokenSelect: document.getElementById("popoverSpokenSelect"),
+        popoverTargetSelect: document.getElementById("popoverTargetSelect"),
+        toggleShowBothBtn: document.getElementById("toggleShowBothBtn"),
+        toggleShowBothKnob: document.getElementById("toggleShowBothKnob"),
+        toggleCantoneseColloquialBtn: document.getElementById("toggleCantoneseColloquialBtn"),
+        toggleCantoneseColloquialKnob: document.getElementById("toggleCantoneseColloquialKnob"),
+        toggleAutoSpeakBtn: document.getElementById("toggleAutoSpeakBtn"),
+        toggleAutoSpeakKnob: document.getElementById("toggleAutoSpeakKnob"),
+        clearTranscriptBtn: document.getElementById("clearTranscriptBtn"),
+        clearBtnLabel: document.getElementById("clearBtnLabel"),
+        barSpokenSelect: document.getElementById("barSpokenSelect"),
+        barTargetSelect: document.getElementById("barTargetSelect"),
+        swapLangBtn: document.getElementById("swapLangBtn"),
+        pairPills: document.querySelectorAll(".pair-pill"),
+        micFallbackBanner: document.getElementById("micFallbackBanner"),
+        micFallbackText: document.getElementById("micFallbackText"),
+        dismissFallbackBtn: document.getElementById("dismissFallbackBtn"),
+        transcriptFeedContainer: document.getElementById("transcriptFeedContainer"),
+        transcriptFeedList: document.getElementById("transcriptFeedList"),
+        translatingIndicator: document.getElementById("translatingIndicator"),
+        pendingPairBadge: document.getElementById("pendingPairBadge"),
+        pendingOriginalText: document.getElementById("pendingOriginalText"),
+        interimSpeechBubble: document.getElementById("interimSpeechBubble"),
+        interimPairLabel: document.getElementById("interimPairLabel"),
+        interimLiveText: document.getElementById("interimLiveText"),
+        interimLiveTranslations: document.getElementById("interimLiveTranslations"),
+        teamsMicBtn: document.getElementById("teamsMicBtn"),
+        dockMicIcon: document.getElementById("dockMicIcon"),
+        dockWaveBars: document.getElementById("dockWaveBars"),
+        dockMicLabel: document.getElementById("dockMicLabel"),
+        manualTextInput: document.getElementById("manualTextInput"),
+        samplePhraseBtn: document.getElementById("samplePhraseBtn"),
+        sendTextBtn: document.getElementById("sendTextBtn"),
+        floatingOverlayCard: document.getElementById("floatingOverlayCard"),
+        overlayDragHandle: document.getElementById("overlayDragHandle"),
+        overlayPairBadge: document.getElementById("overlayPairBadge"),
+        overlayMicBtn: document.getElementById("overlayMicBtn"),
+        overlayMicDot: document.getElementById("overlayMicDot"),
+        overlayMicLabel: document.getElementById("overlayMicLabel"),
+        overlayThemeBtn: document.getElementById("overlayThemeBtn"),
+        overlayFontDecBtn: document.getElementById("overlayFontDecBtn"),
+        overlayFontIncBtn: document.getElementById("overlayFontIncBtn"),
+        overlayCloseBtn: document.getElementById("overlayCloseBtn"),
+        overlayFeedBody: document.getElementById("overlayFeedBody"),
+        overlayEmptyHint: document.getElementById("overlayEmptyHint"),
+        overlaySentencesList: document.getElementById("overlaySentencesList"),
+        overlayInterimBox: document.getElementById("overlayInterimBox"),
+        overlayInterimText: document.getElementById("overlayInterimText"),
+        overlayInterimTrans: document.getElementById("overlayInterimTrans")
+      };
+
+      function showToast(message) {
+        const toast = document.createElement("div");
+        toast.className = "pointer-events-auto px-3.5 py-2 rounded-lg bg-[#242424] text-white text-xs font-medium shadow-lg transition-all duration-200 opacity-0 -translate-y-1";
+        toast.textContent = message;
+        els.toastContainer.appendChild(toast);
+        requestAnimationFrame(() => toast.classList.remove("opacity-0", "-translate-y-1"));
+        setTimeout(() => {
+          toast.classList.add("opacity-0", "-translate-y-1");
+          setTimeout(() => toast.remove(), 220);
+        }, 2500);
+      }
+
+      function getActiveTargetCodes(spokenCode, targetMode) {
+        const spokenCfg = SPOKEN_LANGUAGES[spokenCode] || SPOKEN_LANGUAGES["en-US"];
+        if (targetMode === "BOTH") return [...spokenCfg.otherTargets];
+        if (TARGET_LANGUAGES[targetMode] && targetMode !== spokenCfg.canonicalTarget) return [targetMode];
+        return [...spokenCfg.otherTargets];
+      }
+
+      function getPairLabel(spokenCode, targetMode) {
+        const fromName = SPOKEN_LANGUAGES[spokenCode]?.shortName || spokenCode;
+        const targets = getActiveTargetCodes(spokenCode, targetMode);
+        const toNames = targets.map((code) => TARGET_LANGUAGES[code]?.shortName || code).join(" + ");
+        return `${fromName} ➔ ${toNames}`;
+      }
+
+      function escapeHtml(str) {
+        const div = document.createElement("div");
+        div.textContent = str || "";
+        return div.innerHTML;
+      }
+
+      function scrollFeedToBottom() {
+        requestAnimationFrame(() => els.transcriptFeedContainer.scrollTop = els.transcriptFeedContainer.scrollHeight);
+      }
+
+      function syncLanguageUI() {
+        const pairText = getPairLabel(state.spokenLang, state.targetLang);
+        const spokenCfg = SPOKEN_LANGUAGES[state.spokenLang];
+        els.headerPairPill.textContent = pairText;
+        els.interimPairLabel.textContent = spokenCfg.engineLabel;
+        els.pendingPairBadge.textContent = pairText;
+        els.barSpokenSelect.value = state.spokenLang;
+        els.popoverSpokenSelect.value = state.spokenLang;
+        els.barTargetSelect.value = state.targetLang;
+        els.popoverTargetSelect.value = state.targetLang;
+        const currentKey = `${state.spokenLang}:${state.targetLang}`;
+        els.pairPills.forEach((pill) => {
+          const isActive = pill.dataset.pair === currentKey;
+          pill.className = isActive ? "pair-pill px-2.5 py-1.5 rounded-full text-xs font-semibold border border-teams-primary bg-teams-primary text-white shadow-2xs transition active:scale-95" : "pair-pill px-2.5 py-1.5 rounded-full text-xs font-semibold border border-teams-border bg-white text-teams-text hover:bg-teams-primaryLight hover:border-teams-primary/40 hover:text-teams-primary transition active:scale-95";
+        });
+        updateRecordingVisualState(state.isRecording);
+        syncPopupView();
+      }
+
+      function setLanguagePair(newSpoken, newTarget) {
+        if (!SPOKEN_LANGUAGES[newSpoken]) return;
+        const spokenCfg = SPOKEN_LANGUAGES[newSpoken];
+        let resolvedTarget = newTarget || state.targetLang;
+        if (resolvedTarget === spokenCfg.canonicalTarget) resolvedTarget = "BOTH";
+        if (resolvedTarget !== "BOTH" && !TARGET_LANGUAGES[resolvedTarget]) resolvedTarget = "BOTH";
+        const spokenChanged = state.spokenLang !== newSpoken;
+        state.spokenLang = newSpoken;
+        state.targetLang = resolvedTarget;
+        clearInterimState();
+        syncLanguageUI();
+        if (spokenChanged && state.isRecording) {
+          teardownRecognition();
+          clearTimeout(state.restartTimer);
+          state.restartTimer = setTimeout(() => { if (state.isRecording) createAndStartRecognition(); }, 150);
+          showToast(`已切換語音辨識引擎：${SPOKEN_LANGUAGES[newSpoken].engineLabel}`);
+        }
+      }
+
+      function swapLanguagePair() {
+        const spokenCfg = SPOKEN_LANGUAGES[state.spokenLang];
+        if (state.targetLang === "BOTH") {
+          const nextTargetCode = spokenCfg.otherTargets[0];
+          const nextSpoken = TARGET_LANGUAGES[nextTargetCode]?.spokenCode || "zh-HK";
+          setLanguagePair(nextSpoken, "BOTH");
+        } else {
+          const nextSpoken = TARGET_LANGUAGES[state.targetLang]?.spokenCode || "zh-HK";
+          const nextTarget = spokenCfg.canonicalTarget;
+          setLanguagePair(nextSpoken, nextTarget);
+        }
+        showToast(`已切換方向：${getPairLabel(state.spokenLang, state.targetLang)}`);
+      }
+
+      function toggleSettingsPopover(forceState) {
+        const isHidden = els.settingsPopover.classList.contains("popover-hidden");
+        const shouldOpen = typeof forceState === "boolean" ? forceState : isHidden;
+        if (shouldOpen) {
+          els.settingsPopover.classList.remove("popover-hidden");
+          els.settingsGearBtn.setAttribute("aria-expanded", "true");
+          els.settingsGearBtn.classList.add("bg-teams-hover", "text-teams-primary");
+        } else {
+          els.settingsPopover.classList.add("popover-hidden");
+          els.settingsGearBtn.setAttribute("aria-expanded", "false");
+          els.settingsGearBtn.classList.remove("bg-teams-hover", "text-teams-primary");
+        }
+      }
+
+      function updateToggleSwitchUI(btnEl, knobEl, isOn) {
+        btnEl.setAttribute("aria-checked", String(isOn));
+        if (isOn) {
+          btnEl.classList.remove("bg-[#C7C7C7]");
+          btnEl.classList.add("bg-teams-primary");
+          knobEl.classList.remove("translate-x-[3px]");
+          knobEl.classList.add("translate-x-[22px]");
+        } else {
+          btnEl.classList.remove("bg-teams-primary");
+          btnEl.classList.add("bg-[#C7C7C7]");
+          knobEl.classList.remove("translate-x-[22px]");
+          knobEl.classList.add("translate-x-[3px]");
+        }
+      }
+
+      function formatEntryCopyText(entry) {
+        const targetCodes = Object.keys(entry.translations);
+        const transLines = targetCodes.map((code) => {
+          const label = TARGET_LANGUAGES[code]?.badgeName || code;
+          return targetCodes.length > 1 ? `[${label}] ${entry.translations[code]}` : entry.translations[code];
+        }).join("\n");
+        return state.showBoth ? `${transLines}\n${entry.original}` : transLines;
+      }
+
+      function renderTranscriptFeed() {
+        if (state.entries.length === 0) {
+          els.transcriptFeedList.innerHTML = `<div class="py-14 sm:py-20 px-4 text-center space-y-3"><div class="w-12 h-12 mx-auto rounded-full bg-teams-primaryLight text-teams-primary flex items-center justify-center"><svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.9"><path stroke-linecap="round" stroke-linejoin="round" d="M12 18.75a6 6 0 006-6v-1.5m-6 7.5a6 6 0 01-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 01-3-3V4.5a3 3 0 116 0v8.25a3 3 0 01-3 3z" /></svg></div><p class="text-[15px] font-semibold text-teams-text">選擇語言方向（支援「另外兩種語言」雙語輸出），按「開始說話」或「試講一句」即時翻譯</p><p class="text-xs text-teams-muted">說話期間即時顯示雙語字幕預覽，停頓 1.2 秒自動定稿，亦可開啟右上角「Pop-up 懸浮視窗」</p></div>`;
+          syncPopupView();
+          return;
+        }
+        els.transcriptFeedList.innerHTML = state.entries.map((entry) => {
+          const targetCodes = Object.keys(entry.translations);
+          const copyPayload = formatEntryCopyText(entry);
+          const translationRowsHtml = targetCodes.map((code) => {
+            const langMeta = TARGET_LANGUAGES[code] || { badgeName: code, ttsLang: "en-US" };
+            const translatedText = entry.translations[code] || "";
+            return `<div class="flex items-start justify-between gap-2"><div class="flex items-baseline gap-2 min-w-0 flex-1"><span class="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-semibold bg-teams-primaryLight text-teams-primary shrink-0 select-none">${escapeHtml(langMeta.badgeName)}</span><p class="text-[17px] sm:text-[18px] font-medium text-teams-text leading-[1.52] break-words">${escapeHtml(translatedText)}</p></div><button type="button" data-speak-text="${escapeHtml(translatedText)}" data-speak-lang="${langMeta.ttsLang}" title="朗讀${escapeHtml(langMeta.badgeName)}" class="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 px-2 py-0.5 rounded text-[11px] font-medium text-teams-primary bg-teams-primaryLight/70 hover:bg-teams-primaryLight shrink-0 transition-opacity">🔊</button></div>`;
+          }).join("");
+          return `<article class="group relative rounded-xl border border-teams-subtle bg-white hover:border-teams-border hover:bg-[#FAFAFA] px-4 py-3.5 transition"><div class="flex items-start justify-between gap-2"><div class="min-w-0 flex-1 space-y-1.5">${translationRowsHtml}${state.showBoth ? `<p class="text-[14px] text-teams-muted leading-[1.5] pt-0.5 break-words">${escapeHtml(entry.original)}</p>` : ""}</div><div class="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 flex items-center shrink-0 transition-opacity"><button type="button" data-copy-text="${escapeHtml(copyPayload)}" title="複製句子" class="px-2 py-1 rounded-md text-[11px] font-medium text-teams-muted hover:text-teams-text hover:bg-teams-hover transition">📋 複製</button></div></div></article>`;
+        }).join("");
+        syncPopupView();
+      }
+
+      function convertStandardTraditionalToHKCantonese(text) {
+        if (!text) return "";
+        const replacements = [[/我們/g, "我哋"], [/你們/g, "你哋"], [/他們/g, "佢哋"], [/她們/g, "佢哋"], [/它們/g, "佢哋"], [/大家早上好/g, "各位早晨"], [/早上好/g, "早晨"], [/什麼時候/g, "幾時"], [/什麼/g, "乜嘢"], [/為什麼/g, "點解"], [/怎麼樣/g, "點樣"], [/怎麼/g, "點"], [/在哪裡/g, "喺邊度"], [/哪裡/g, "邊度"], [/在這裡/g, "喺呢度"], [/這裡/g, "呢度"], [/在那裡/g, "喺嗰度"], [/那裡/g, "嗰度"], [/沒有/g, "冇"], [/不是/g, "唔係"], [/不知道/g, "唔知"], [/不需要/g, "唔使"], [/不用/g, "唔使"], [/可以嗎/g, "得唔得"], [/謝謝/g, "唔該"], [/對不起/g, "唔好意思"], [/現在/g, "依家"], [/明天/g, "聽日"], [/昨天/g, "尋日"], [/今天/g, "今日"], [/下午/g, "下晝"], [/上午/g, "上晝"], [/晚上/g, "夜晚"], [/看一下/g, "睇下"], [/幫忙/g, "幫手"], [/給/g, "俾"], [/東西/g, "嘢"], [/非常/g, "好"], [/很/g, "好"], [/的/g, "嘅"], [/了/g, "咗"], [/嗎/g, "咩"], [/他/g, "佢"], [/她/g, "佢"]];
+        let out = text;
+        for (const [pattern, replacement] of replacements) out = out.replace(pattern, replacement);
+        return out;
+      }
+
+      async function translateSingleViaGTX(text, spokenCode, targetCode) {
+        const sl = SPOKEN_LANGUAGES[spokenCode]?.gtxSl || "auto";
+        const tl = TARGET_LANGUAGES[targetCode]?.gtxCode || "en";
+        const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=${encodeURIComponent(sl)}&tl=${encodeURIComponent(tl)}&dt=t&q=${encodeURIComponent(text)}`;
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 3000);
+        try {
+          const res = await fetch(url, { signal: controller.signal });
+          if (!res.ok) throw new Error(`GTX HTTP ${res.status}`);
+          const data = await res.json();
+          let translated = Array.isArray(data?.[0]) ? data[0].map((seg) => seg?.[0] || "").join("").trim() : "";
+          if (!translated) throw new Error("Empty GTX translation");
+          if (targetCode === "yue" && state.cantoneseColloquial) translated = convertStandardTraditionalToHKCantonese(translated);
+          return translated;
+        } finally { clearTimeout(timer); }
+      }
+
+      async function translateViaFallbackMap(text, spokenCode, targetCodes) {
+        const entries = await Promise.all(targetCodes.map(async (code) => [code, await translateSingleViaGTX(text, spokenCode, code)]));
+        return Object.fromEntries(entries);
+      }
+
+      async function translateViaGeminiWithTimeout(text, spokenCode, targetCodes) {
+        const sourceLabel = SPOKEN_LANGUAGES[spokenCode]?.fullName || spokenCode;
+        const targetDescriptions = targetCodes.map((code) => {
+          if (code === "yue") return state.cantoneseColloquial ? `"yue": Natural, authentic Hong Kong spoken Cantonese written in Traditional Chinese characters (地道香港廣東話口語，自然運用「唔該、冇問題、喺邊度、點樣、幫手睇下、依家、嘅、咗」等日常口語表達)` : `"yue": Polished Standard Traditional Chinese (地道流暢的香港繁體書面語)`;
+          if (code === "zh") return `"zh": Natural, idiomatic Mandarin Chinese written in Simplified Chinese characters (自然地道的現代普通話簡體中文)`;
+          if (code === "ja") return `"ja": Natural, polite, and idiomatic Japanese (自然流暢的現代日語，適切使用敬語或自然會話表達)`;
+          if (code === "ko") return `"ko": Natural, polite, and idiomatic Korean (自然流暢的現代韓語，適切使用敬語與日常會話表達)`;
+          if (code === "fr") return `"fr": Natural, idiomatic French with proper accents and punctuation`;
+          if (code === "de") return `"de": Natural, idiomatic German with accurate grammar and punctuation`;
+          if (code === "es") return `"es": Natural, idiomatic Spanish with proper punctuation`;
+          return `"en": Natural, accurate conversational English with proper punctuation`;
+        }).join("\n- ");
+        const systemPrompt = `You are a real-time multilingual speech interpreter specializing in Cantonese, Mandarin Chinese, English, Japanese, Korean, French, German, and Spanish.\nAccurately understand the spoken sentence (including code-switching) from ${sourceLabel} and translate it into the requested target language(s) below:\n- ${targetDescriptions}\nReturn ONLY a valid JSON object containing the exact requested keys (${targetCodes.map((c) => `"${c}"`).join(", ")}), with clean translated sentences and proper punctuation. No markdown, no explanations, no timestamps.`;
+        const properties = {};
+        for (const code of targetCodes) properties[code] = { type: "STRING" };
+        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`;
+        const payload = { contents: [{ role: "user", parts: [{ text }] }], systemInstruction: { parts: [{ text: systemPrompt }] }, generationConfig: { responseMimeType: "application/json", responseSchema: { type: "OBJECT", properties, required: targetCodes } } };
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 3500);
+        try {
+          const response = await fetch(apiUrl, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload), signal: controller.signal });
+          if (!response.ok) throw new Error(`Gemini HTTP ${response.status}`);
+          const result = await response.json();
+          const rawJson = result?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+          if (!rawJson) throw new Error("Empty Gemini JSON");
+          const parsed = JSON.parse(rawJson);
+          const output = {};
+          for (const code of targetCodes) {
+            if (!parsed[code] || typeof parsed[code] !== "string") throw new Error(`Missing key ${code}`);
+            output[code] = parsed[code].trim();
+          }
+          return output;
+        } finally { clearTimeout(timeoutId); }
+      }
+
+      async function translateSentenceToTargets(text, spokenCode, targetCodes, preferFast = false) {
+        if (preferFast) return translateViaFallbackMap(text, spokenCode, targetCodes);
+        try { return await translateViaGeminiWithTimeout(text, spokenCode, targetCodes); } catch (_) { return await translateViaFallbackMap(text, spokenCode, targetCodes); }
+      }
+
+      async function commitRecognizedSentence(rawText) {
+        const cleanText = (rawText || "").trim();
+        if (!cleanText) return;
+        const now = Date.now();
+        if (cleanText === state.lastCommittedText && now - state.lastCommittedAt < 1500) return;
+        state.lastCommittedText = cleanText;
+        state.lastCommittedAt = now;
+        const spokenCode = state.spokenLang;
+        const targetMode = state.targetLang;
+        const targetCodes = getActiveTargetCodes(spokenCode, targetMode);
+        const prefillTranslations = {};
+        for (const code of targetCodes) if (state.liveInterimTranslations[code]) prefillTranslations[code] = state.liveInterimTranslations[code];
+        clearInterimState();
+        els.pendingPairBadge.textContent = getPairLabel(spokenCode, targetMode);
+        els.pendingOriginalText.textContent = cleanText;
+        els.translatingIndicator.classList.remove("hidden");
+        els.liveStatusDot.className = "w-2 h-2 rounded-full bg-teams-primary animate-ping";
+        els.liveStatusLabel.textContent = "翻譯中...";
+        scrollFeedToBottom();
+        try {
+          const translations = await translateSentenceToTargets(cleanText, spokenCode, targetCodes, false);
+          const newEntry = { id: Date.now() + Math.random(), spokenLang: spokenCode, targetLang: targetMode, original: cleanText, translations };
+          state.entries.push(newEntry);
+          renderTranscriptFeed();
+          scrollFeedToBottom();
+          if (state.autoSpeak && targetCodes.length > 0) {
+            const firstCode = targetCodes[0];
+            speakText(newEntry.translations[firstCode], TARGET_LANGUAGES[firstCode]?.ttsLang || "en-US");
+          }
+        } catch (_) {
+          if (Object.keys(prefillTranslations).length === targetCodes.length) {
+            state.entries.push({ id: Date.now() + Math.random(), spokenLang: spokenCode, targetLang: targetMode, original: cleanText, translations: prefillTranslations });
+            renderTranscriptFeed();
+            scrollFeedToBottom();
+          } else showToast("翻譯暫時未有回應，請檢查網絡連線後再試");
+        } finally {
+          els.translatingIndicator.classList.add("hidden");
+          updateRecordingVisualState(state.isRecording);
+        }
+      }
+
+      function updatePopupButtonVisualState() {
+        els.popupWindowBtn.className = state.popupMode !== "none" ? "inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-semibold text-white bg-teams-primary hover:bg-teams-primaryHover border border-teams-primary focus:outline-none focus:ring-2 focus:ring-teams-primary/40 transition" : "inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-semibold text-teams-primary bg-teams-primaryLight hover:bg-teams-primary hover:text-white border border-teams-primary/30 focus:outline-none focus:ring-2 focus:ring-teams-primary/40 transition";
+      }
+
+      function buildExternalPopupHTML() {
+        return `<!DOCTYPE html><html lang="zh-HK"><head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" /><title>即時懸浮翻譯 | Live Subtitles</title><style>* { box-sizing: border-box; margin: 0; padding: 0; } body { font-family: 'Segoe UI', 'Inter', 'Noto Sans TC', system-ui, -apple-system, sans-serif; display: flex; flex-direction: column; height: 100vh; overflow: hidden; transition: background-color 0.18s ease, color 0.18s ease; } body.theme-dark { background: #1B1B1F; color: #FFFFFF; } body.theme-light { background: #FFFFFF; color: #242424; } .topbar { display: flex; align-items: center; justify-content: space-between; gap: 6px; padding: 8px 12px; border-bottom: 1px solid rgba(128,128,128,0.22); flex-shrink: 0; } body.theme-dark .topbar { background: #26262C; } body.theme-light .topbar { background: #F5F5F5; } .pair-badge { display: inline-flex; align-items: center; padding: 3px 9px; border-radius: 999px; font-size: 11px; font-weight: 600; background: #5B5FC7; color: #FFFFFF; white-space: nowrap; } .controls { display: flex; align-items: center; gap: 5px; } button { border: none; border-radius: 6px; padding: 4px 8px; font-size: 11px; font-weight: 600; cursor: pointer; transition: opacity 0.15s ease, background-color 0.15s ease; } button:hover { opacity: 0.9; } .btn-mic { background: #5B5FC7; color: #FFFFFF; display: inline-flex; align-items: center; gap: 5px; } .btn-mic.live { background: #C4314B; } .dot { width: 6px; height: 6px; border-radius: 50%; background: #FFFFFF; } body.theme-dark .btn-tool { background: rgba(255,255,255,0.12); color: #FFFFFF; } body.theme-light .btn-tool { background: #E6E6E6; color: #242424; } .stream { flex: 1; overflow-y: auto; padding: 12px 14px; display: flex; flex-direction: column; gap: 10px; } .entry { padding-bottom: 8px; border-bottom: 1px solid rgba(128,128,128,0.16); display: flex; flex-direction: column; gap: 4px; } .entry:last-child { border-bottom: none; padding-bottom: 0; } .trans-row { display: flex; align-items: baseline; gap: 6px; } .lang-tag { font-size: 10px; font-weight: 700; padding: 1px 5px; border-radius: 4px; background: rgba(91, 95, 199, 0.22); color: #8E92F8; flex-shrink: 0; } body.theme-light .lang-tag { background: #EEF0FC; color: #5B5FC7; } .translated { font-weight: 500; line-height: 1.46; word-break: break-word; } .original { font-size: 13px; line-height: 1.42; margin-top: 2px; word-break: break-word; } body.theme-dark .original { color: #B4B4BE; } body.theme-light .original { color: #616161; } .interim { border-radius: 8px; padding: 8px 10px; font-size: 13px; line-height: 1.45; background: rgba(91, 95, 199, 0.18); border: 1px solid rgba(91, 95, 199, 0.42); display: flex; flex-direction: column; gap: 4px; } .interim-tag { font-weight: 700; color: #7C81F7; margin-right: 4px; } .empty { margin: auto; text-align: center; font-size: 13px; opacity: 0.7; padding: 12px; }</style></head><body class="theme-dark"><div class="topbar"><span id="extPairBadge" class="pair-badge">英文 ➔ 廣東話 + 普通話</span><div class="controls"><button id="extMicBtn" type="button" class="btn-mic"><span class="dot"></span><span id="extMicLabel">開始說話</span></button><button id="extThemeBtn" type="button" class="btn-tool" title="切換淺色 / 深色背景">☀️</button><button id="extFontDecBtn" type="button" class="btn-tool" title="縮小字體">A-</button><button id="extFontIncBtn" type="button" class="btn-tool" title="放大字體">A+</button></div></div><div id="extStream" class="stream"><div id="extEmpty" class="empty">點擊「開始說話」，精準雙語翻譯句子將會即時顯示於此懸浮視窗</div><div id="extList"></div><div id="extInterimBox" class="interim" style="display:none;"><div><span class="interim-tag">聆聽中：</span><span id="extInterimText"></span></div><div id="extInterimTrans"></div></div></div></body></html>`;
+      }
+
+      function wireExternalPopupEvents(popupDoc) {
+        const micBtn = popupDoc.getElementById("extMicBtn");
+        const themeBtn = popupDoc.getElementById("extThemeBtn");
+        const decBtn = popupDoc.getElementById("extFontDecBtn");
+        const incBtn = popupDoc.getElementById("extFontIncBtn");
+        if (micBtn) micBtn.addEventListener("click", () => toggleMicrophone());
+        if (themeBtn) themeBtn.addEventListener("click", () => { state.popupDarkTheme = !state.popupDarkTheme; syncPopupView(); });
+        if (decBtn) decBtn.addEventListener("click", () => { state.popupFontSize = Math.max(14, state.popupFontSize - 2); syncPopupView(); });
+        if (incBtn) incBtn.addEventListener("click", () => { state.popupFontSize = Math.min(30, state.popupFontSize + 2); syncPopupView(); });
+      }
+
+      function closePopupMode() {
+        if ((state.popupMode === "pip" || state.popupMode === "window") && state.popupWindowRef) { try { if (!state.popupWindowRef.closed) state.popupWindowRef.close(); } catch (_) {} }
+        state.popupWindowRef = null;
+        state.popupMode = "none";
+        els.floatingOverlayCard.classList.add("hidden");
+        els.floatingOverlayCard.classList.remove("flex");
+        updatePopupButtonVisualState();
+      }
+
+      async function openPopupMode() {
+        if (state.popupMode !== "none") { closePopupMode(); showToast("已關閉 Pop-up 懸浮視窗"); return; }
+        if ("documentPictureInPicture" in window) {
+          try {
+            const pipWin = await window.documentPictureInPicture.requestWindow({ width: 480, height: 300 });
+            pipWin.document.open(); pipWin.document.write(buildExternalPopupHTML()); pipWin.document.close();
+            state.popupMode = "pip"; state.popupWindowRef = pipWin; wireExternalPopupEvents(pipWin.document); updatePopupButtonVisualState(); syncPopupView();
+            pipWin.addEventListener("pagehide", () => { state.popupWindowRef = null; state.popupMode = "none"; updatePopupButtonVisualState(); });
+            showToast("已開啟置頂 Pop-up 懸浮翻譯視窗"); return;
+          } catch (_) {}
+        }
+        try {
+          const popupWin = window.open("", "LiveTranslatePopup", "popup=yes,width=500,height=320,resizable=yes,scrollbars=yes");
+          if (popupWin && !popupWin.closed) {
+            popupWin.document.open(); popupWin.document.write(buildExternalPopupHTML()); popupWin.document.close();
+            state.popupMode = "window"; state.popupWindowRef = popupWin; wireExternalPopupEvents(popupWin.document); updatePopupButtonVisualState(); syncPopupView();
+            popupWin.addEventListener("beforeunload", () => { state.popupWindowRef = null; state.popupMode = "none"; updatePopupButtonVisualState(); });
+            showToast("已開啟獨立 Pop-up 翻譯視窗"); return;
+          }
+        } catch (_) {}
+        state.popupMode = "overlay"; state.popupWindowRef = null; els.floatingOverlayCard.classList.remove("hidden"); els.floatingOverlayCard.classList.add("flex"); updatePopupButtonVisualState(); syncPopupView(); showToast("已開啟內建可拖曳懸浮翻譯視窗");
+      }
+
+      function syncPopupView() {
+        if (state.popupMode === "none") return;
+        const pairText = getPairLabel(state.spokenLang, state.targetLang);
+        const recentEntries = state.entries.slice(-12);
+        const interimStr = state.interimBuffer.trim();
+        const liveTransEntries = Object.entries(state.liveInterimTranslations);
+        if ((state.popupMode === "pip" || state.popupMode === "window") && state.popupWindowRef) {
+          if (state.popupWindowRef.closed) { state.popupWindowRef = null; state.popupMode = "none"; updatePopupButtonVisualState(); return; }
+          const doc = state.popupWindowRef.document;
+          if (!doc || !doc.body) return;
+          doc.body.className = state.popupDarkTheme ? "theme-dark" : "theme-light";
+          const pairEl = doc.getElementById("extPairBadge");
+          const micBtn = doc.getElementById("extMicBtn");
+          const micLbl = doc.getElementById("extMicLabel");
+          const themeBtn = doc.getElementById("extThemeBtn");
+          const emptyEl = doc.getElementById("extEmpty");
+          const listEl = doc.getElementById("extList");
+          const interimBox = doc.getElementById("extInterimBox");
+          const interimText = doc.getElementById("extInterimText");
+          const interimTrans = doc.getElementById("extInterimTrans");
+          const streamEl = doc.getElementById("extStream");
+          if (pairEl) pairEl.textContent = pairText;
+          if (micBtn) micBtn.className = state.isRecording ? "btn-mic live" : "btn-mic";
+          if (micLbl) micLbl.textContent = state.isRecording ? "停止說話" : "開始說話";
+          if (themeBtn) themeBtn.textContent = state.popupDarkTheme ? "☀️" : "🌙";
+          if (emptyEl) emptyEl.style.display = (recentEntries.length === 0 && !interimStr) ? "block" : "none";
+          if (listEl) {
+            listEl.innerHTML = recentEntries.map((entry) => {
+              const rows = Object.entries(entry.translations).map(([code, txt]) => `<div class="trans-row"><span class="lang-tag">${escapeHtml(TARGET_LANGUAGES[code]?.badgeName || code)}</span><div class="translated" style="font-size:${state.popupFontSize}px;">${escapeHtml(txt)}</div></div>`).join("");
+              return `<div class="entry">${rows}${state.showBoth ? `<div class="original">${escapeHtml(entry.original)}</div>` : ""}</div>`;
+            }).join("");
+          }
+          if (interimBox && interimText) {
+            if (interimStr) {
+              interimBox.style.display = "flex"; interimText.textContent = interimStr;
+              if (interimTrans) interimTrans.innerHTML = liveTransEntries.map(([code, txt]) => `<div class="trans-row" style="margin-top:3px;"><span class="lang-tag">${escapeHtml(TARGET_LANGUAGES[code]?.badgeName || code)}</span><span style="font-size:${Math.max(14, state.popupFontSize - 1)}px; font-weight:500;">${escapeHtml(txt)}</span></div>`).join("");
+            } else interimBox.style.display = "none";
+          }
+          if (streamEl) streamEl.scrollTop = streamEl.scrollHeight;
+          return;
+        }
+        if (state.popupMode === "overlay") {
+          els.overlayPairBadge.textContent = pairText;
+          els.overlayMicLabel.textContent = state.isRecording ? "停止說話" : "開始說話";
+          els.overlayMicBtn.className = state.isRecording ? "inline-flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-semibold bg-teams-danger text-white transition" : "inline-flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-semibold bg-teams-primary hover:bg-teams-primaryHover text-white transition";
+          els.overlayThemeBtn.textContent = state.popupDarkTheme ? "☀️" : "🌙";
+          if (state.popupDarkTheme) { els.floatingOverlayCard.classList.remove("bg-white", "text-teams-text", "border-teams-border"); els.floatingOverlayCard.classList.add("bg-[#1B1B1F]", "text-white", "border-[#3B3B45]"); els.overlayDragHandle.classList.remove("bg-[#F5F5F5]", "border-teams-border"); els.overlayDragHandle.classList.add("bg-[#26262C]", "border-white/10"); }
+          else { els.floatingOverlayCard.classList.remove("bg-[#1B1B1F]", "text-white", "border-[#3B3B45]"); els.floatingOverlayCard.classList.add("bg-white", "text-teams-text", "border-teams-border"); els.overlayDragHandle.classList.remove("bg-[#26262C]", "border-white/10"); els.overlayDragHandle.classList.add("bg-[#F5F5F5]", "border-teams-border"); }
+          els.overlayEmptyHint.classList.toggle("hidden", recentEntries.length > 0 || Boolean(interimStr));
+          const originalColorClass = state.popupDarkTheme ? "text-[#B4B4BE]" : "text-teams-muted";
+          const borderDividerClass = state.popupDarkTheme ? "border-white/10" : "border-teams-subtle";
+          const badgeClass = state.popupDarkTheme ? "bg-teams-primary/30 text-[#A5A9FF]" : "bg-teams-primaryLight text-teams-primary";
+          els.overlaySentencesList.innerHTML = recentEntries.map((entry) => {
+            const rows = Object.entries(entry.translations).map(([code, txt]) => `<div class="flex items-baseline gap-1.5"><span class="px-1.5 py-0.5 rounded text-[10px] font-bold ${badgeClass} shrink-0">${escapeHtml(TARGET_LANGUAGES[code]?.badgeName || code)}</span><p class="font-medium leading-[1.46] break-words" style="font-size:${state.popupFontSize}px;">${escapeHtml(txt)}</p></div>`).join("");
+            return `<div class="pb-2 border-b ${borderDividerClass} last:border-b-0 last:pb-0 space-y-1">${rows}${state.showBoth ? `<p class="text-[13px] ${originalColorClass} leading-[1.42] break-words">${escapeHtml(entry.original)}</p>` : ""}</div>`;
+          }).join("");
+          if (interimStr) {
+            els.overlayInterimBox.classList.remove("hidden"); els.overlayInterimText.textContent = interimStr;
+            els.overlayInterimTrans.innerHTML = liveTransEntries.map(([code, txt]) => `<div class="flex items-baseline gap-1.5"><span class="px-1.5 py-0.5 rounded text-[10px] font-bold ${badgeClass} shrink-0">${escapeHtml(TARGET_LANGUAGES[code]?.badgeName || code)}</span><span style="font-size:${Math.max(14, state.popupFontSize - 1)}px;">${escapeHtml(txt)}</span></div>`).join("");
+          } else { els.overlayInterimBox.classList.add("hidden"); els.overlayInterimTrans.innerHTML = ""; }
+          els.overlayFeedBody.scrollTop = els.overlayFeedBody.scrollHeight;
+        }
+      }
+
+      function initOverlayDrag() {
+        let dragging = false, startX = 0, startY = 0, origLeft = 0, origTop = 0;
+        function startDrag(clientX, clientY, target) {
+          if (target.closest("button")) return;
+          dragging = true; const rect = els.floatingOverlayCard.getBoundingClientRect(); startX = clientX; startY = clientY; origLeft = rect.left; origTop = rect.top;
+          els.floatingOverlayCard.style.right = "auto"; els.floatingOverlayCard.style.bottom = "auto"; els.floatingOverlayCard.style.left = `${origLeft}px`; els.floatingOverlayCard.style.top = `${origTop}px`;
+        }
+        function moveDrag(clientX, clientY) {
+          if (!dragging) return;
+          const maxLeft = Math.max(0, window.innerWidth - els.floatingOverlayCard.offsetWidth), maxTop = Math.max(0, window.innerHeight - els.floatingOverlayCard.offsetHeight);
+          els.floatingOverlayCard.style.left = `${Math.min(Math.max(0, origLeft + clientX - startX), maxLeft)}px`; els.floatingOverlayCard.style.top = `${Math.min(Math.max(0, origTop + clientY - startY), maxTop)}px`;
+        }
+        function endDrag() { dragging = false; }
+        els.overlayDragHandle.addEventListener("mousedown", (e) => startDrag(e.clientX, e.clientY, e.target));
+        document.addEventListener("mousemove", (e) => moveDrag(e.clientX, e.clientY));
+        document.addEventListener("mouseup", endDrag);
+        els.overlayDragHandle.addEventListener("touchstart", (e) => { if (e.touches.length === 1) startDrag(e.touches[0].clientX, e.touches[0].clientY, e.target); }, { passive: true });
+        document.addEventListener("touchmove", (e) => { if (dragging && e.touches.length === 1) moveDrag(e.touches[0].clientX, e.touches[0].clientY); }, { passive: true });
+        document.addEventListener("touchend", endDrag);
+      }
+
+      function clearInterimState() {
+        clearTimeout(state.interimDebounceTimer); clearTimeout(state.silenceCommitTimer); state.interimBuffer = ""; state.liveInterimTranslations = {}; els.interimSpeechBubble.classList.add("hidden"); els.interimLiveTranslations.innerHTML = ""; syncPopupView();
+      }
+
+      function renderInterimLiveBubble() {
+        const text = state.interimBuffer.trim();
+        if (!text) { els.interimSpeechBubble.classList.add("hidden"); syncPopupView(); return; }
+        const spokenCfg = SPOKEN_LANGUAGES[state.spokenLang];
+        els.interimPairLabel.textContent = spokenCfg.engineLabel; els.interimLiveText.textContent = text;
+        const liveEntries = Object.entries(state.liveInterimTranslations);
+        els.interimLiveTranslations.innerHTML = liveEntries.length > 0 ? liveEntries.map(([code, translated]) => `<div class="flex items-baseline gap-2"><span class="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-semibold bg-white text-teams-primary border border-teams-primary/25 shrink-0">${escapeHtml(TARGET_LANGUAGES[code]?.badgeName || code)}</span><p class="text-[16px] font-medium text-teams-text leading-snug break-words">${escapeHtml(translated)}</p></div>`).join("") : `<div class="text-xs text-teams-primary/80">正在即時翻譯...</div>`;
+        els.interimSpeechBubble.classList.remove("hidden"); scrollFeedToBottom(); syncPopupView();
+      }
+
+      function scheduleInterimLiveTranslation(snapshotText) {
+        clearTimeout(state.interimDebounceTimer); const spokenAtCall = state.spokenLang, targetCodesAtCall = getActiveTargetCodes(spokenAtCall, state.targetLang);
+        state.interimDebounceTimer = setTimeout(async () => {
+          if (!state.isRecording || state.spokenLang !== spokenAtCall || !state.interimBuffer.trim()) return;
+          try {
+            const fastMap = await translateSentenceToTargets(snapshotText, spokenAtCall, targetCodesAtCall, true);
+            if (!state.isRecording || !state.interimBuffer.trim()) return;
+            state.liveInterimTranslations = fastMap; renderInterimLiveBubble();
+          } catch (_) {}
+        }, 400);
+      }
+
+      function updateRecordingVisualState(isRec) {
+        state.isRecording = isRec; const spokenCfg = SPOKEN_LANGUAGES[state.spokenLang];
+        if (isRec) {
+          els.teamsMicBtn.className = "inline-flex items-center justify-center gap-2.5 px-5 py-3 rounded-xl text-sm font-semibold text-white bg-teams-danger hover:opacity-95 active:scale-[0.99] shadow-sm transition shrink-0 recording";
+          els.dockMicIcon.classList.add("hidden"); els.dockWaveBars.classList.remove("hidden"); els.dockWaveBars.classList.add("inline-flex"); els.dockMicLabel.textContent = "停止說話";
+          els.liveStatusPill.className = "inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-[#FDF2F4] text-teams-danger border border-[#F3C6CE] transition-colors";
+          els.liveStatusDot.className = "w-2 h-2 rounded-full bg-teams-danger animate-pulse"; els.liveStatusLabel.textContent = `正在聆聽：${spokenCfg.engineLabel}`;
+        } else {
+          els.teamsMicBtn.className = "inline-flex items-center justify-center gap-2.5 px-5 py-3 rounded-xl text-sm font-semibold text-white bg-teams-primary hover:bg-teams-primaryHover active:scale-[0.99] shadow-sm transition shrink-0";
+          els.dockMicIcon.classList.remove("hidden"); els.dockWaveBars.classList.add("hidden"); els.dockWaveBars.classList.remove("inline-flex"); els.dockMicLabel.textContent = "開始說話";
+          els.liveStatusPill.className = "inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-[#F5F5F5] text-teams-muted border border-teams-border transition-colors";
+          els.liveStatusDot.className = "w-2 h-2 rounded-full bg-emerald-500"; els.liveStatusLabel.textContent = `就緒 · ${spokenCfg.engineLabel}`;
+        }
+        syncPopupView();
+      }
+
+      function teardownRecognition() {
+        state.recognitionSessionId += 1; clearTimeout(state.silenceCommitTimer); clearTimeout(state.interimDebounceTimer); clearTimeout(state.restartTimer);
+        if (state.recognition) { const oldRec = state.recognition; state.recognition = null; try { oldRec.onstart = null; oldRec.onresult = null; oldRec.onerror = null; oldRec.onend = null; oldRec.abort(); } catch (_) {} }
+      }
+
+      function createAndStartRecognition() {
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!SpeechRecognition) {
+          state.speechSupported = false; state.isRecording = false; updateRecordingVisualState(false);
+          els.micFallbackText.textContent = "此瀏覽器暫不支援語音識別，請使用 Chrome / Edge 或直接使用下方輸入框與「試講一句」。"; els.micFallbackBanner.classList.remove("hidden"); return;
+        }
+        state.speechSupported = true; teardownRecognition();
+        const sessionId = ++state.recognitionSessionId, activeLang = state.spokenLang, recognition = new SpeechRecognition();
+        // 追蹤當前連續工作階段已送出翻譯的句子索引，避免停頓斷句時需要重啟麥克風
+        const committedSegmentIndices = new Set();
+
+        if (activeLang !== "auto") {
+          recognition.lang = activeLang;
+        }
+        recognition.continuous = true; recognition.interimResults = true; recognition.maxAlternatives = 1;
+        
+        recognition.onstart = () => { if (sessionId === state.recognitionSessionId) updateRecordingVisualState(true); };
+        
+        recognition.onresult = (event) => {
+          if (sessionId !== state.recognitionSessionId) return;
+          let finalizedChunk = "", interimChunk = "";
+          const activeInterimIndices = [];
+
+          for (let i = 0; i < event.results.length; i++) {
+            if (committedSegmentIndices.has(i)) continue;
+            if (event.results[i].isFinal) {
+              committedSegmentIndices.add(i);
+              finalizedChunk += event.results[i][0].transcript;
+            } else {
+              activeInterimIndices.push(i);
+              interimChunk += event.results[i][0].transcript;
+            }
+          }
+
+          if (finalizedChunk.trim()) {
+            clearTimeout(state.silenceCommitTimer);
+            commitRecognizedSentence(finalizedChunk.trim());
+            return;
+          }
+
+          if (interimChunk.trim()) {
+            const liveText = interimChunk.trim(); state.interimBuffer = liveText; renderInterimLiveBubble(); scheduleInterimLiveTranslation(liveText);
+            clearTimeout(state.silenceCommitTimer);
+            state.silenceCommitTimer = setTimeout(() => {
+              if (sessionId !== state.recognitionSessionId) return;
+              const flushed = state.interimBuffer.trim();
+              if (flushed && state.isRecording) {
+                activeInterimIndices.forEach((idx) => committedSegmentIndices.add(idx));
+                commitRecognizedSentence(flushed);
+              }
+            }, 1400);
+          }
+        };
+        
+        recognition.onerror = (event) => {
+          if (sessionId !== state.recognitionSessionId) return;
+          if (event.error === "no-speech" || event.error === "aborted") return;
+          if (event.error === "network") { els.micFallbackText.textContent = "語音辨識網絡連線暫時不穩，請檢查網絡後再試。"; els.micFallbackBanner.classList.remove("hidden"); return; }
+          if (event.error === "language-not-supported" || event.error === "not-allowed" || event.error === "service-not-allowed") {
+            state.isRecording = false; teardownRecognition(); clearInterimState(); updateRecordingVisualState(false);
+            els.micFallbackText.textContent = event.error === "language-not-supported" ? `目前瀏覽器不支援 ${SPOKEN_LANGUAGES[activeLang].engineLabel} 語音識別，請改用 Chrome / Edge 或點擊「試講一句」。` : "麥克風權限被拒絕或無法存取，請允許麥克風權限或直接使用下方輸入框與「試講一句」。";
+            els.micFallbackBanner.classList.remove("hidden"); if (event.error !== "language-not-supported") showToast("麥克風權限被拒絕，無法開始錄音");
+          }
+        };
+        
+        recognition.onend = () => {
+          if (sessionId !== state.recognitionSessionId) return;
+          const leftover = state.interimBuffer.trim();
+          if (leftover) commitRecognizedSentence(leftover);
+          // 絕不在背景自動重啟麥克風，避免本機檔案 (file://) 無限彈出權限視窗
+          const wasRecording = state.isRecording;
+          state.isRecording = false;
+          state.recognition = null;
+          clearInterimState();
+          updateRecordingVisualState(false);
+          if (wasRecording) {
+            showToast("語音聆聽已停止，如需繼續請按「開始說話」");
+          }
+        };
+        
+        state.recognition = recognition;
+        try { recognition.start(); } catch (_) { state.isRecording = false; updateRecordingVisualState(false); showToast("無法啟動麥克風，請再試一次"); }
+      }
+
+      function toggleMicrophone() {
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!SpeechRecognition) { els.micFallbackText.textContent = "此瀏覽器暫不支援語音識別，請使用 Chrome / Edge 或直接使用下方輸入框與「試講一句」。"; els.micFallbackBanner.classList.remove("hidden"); els.manualTextInput.focus(); return; }
+        if (state.isRecording) {
+          state.isRecording = false; const pendingText = state.interimBuffer.trim(); teardownRecognition(); clearInterimState(); updateRecordingVisualState(false);
+          if (pendingText) commitRecognizedSentence(pendingText);
+        } else { state.isRecording = true; updateRecordingVisualState(true); createAndStartRecognition(); showToast(`正在聆聽：${SPOKEN_LANGUAGES[state.spokenLang].engineLabel}`); }
+      }
+
+      function speakText(text, langCode) {
+        if (!text || !text.trim()) return;
+        if (!("speechSynthesis" in window)) { showToast("此瀏覽器不支援語音朗讀功能"); return; }
+        try {
+          window.speechSynthesis.cancel(); const utterance = new SpeechSynthesisUtterance(text); utterance.lang = langCode; utterance.rate = 0.98;
+          const voices = window.speechSynthesis.getVoices();
+          if (voices.length > 0) {
+            let match = voices.find((v) => v.lang.toLowerCase() === langCode.toLowerCase()) || (langCode === "zh-HK" ? voices.find((v) => /hk|cantonese|yue/i.test(v.lang + " " + v.name)) : null) || voices.find((v) => v.lang.toLowerCase().startsWith(langCode.split("-")[0].toLowerCase()));
+            if (match) utterance.voice = match;
+          }
+          window.speechSynthesis.speak(utterance);
+        } catch (_) { showToast("語音播放失敗"); }
+      }
+
+      function copyTextToClipboard(text) {
+        if (!text) return;
+        try {
+          const textarea = document.createElement("textarea"); textarea.value = text; textarea.setAttribute("readonly", ""); textarea.style.position = "fixed"; textarea.style.left = "-9999px";
+          document.body.appendChild(textarea); textarea.select(); const ok = document.execCommand("copy"); document.body.removeChild(textarea);
+          if (ok) { showToast("已複製到剪貼簿"); return; }
+        } catch (_) {}
+        if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(() => showToast("已複製到剪貼簿")).catch(() => showToast("複製失敗"));
+      }
+
+      function copyAllTranscriptText() {
+        if (state.entries.length === 0) { showToast("目前沒有可複製的翻譯內容"); return; }
+        copyTextToClipboard(state.entries.map((entry) => formatEntryCopyText(entry)).join("\n\n"));
+      }
+
+      function handleClearTranscript() {
+        if (state.entries.length === 0) { showToast("逐字稿目前是空的"); return; }
+        if (!state.clearPending) {
+          state.clearPending = true; els.clearBtnLabel.textContent = "確定清除？"; els.clearTranscriptBtn.classList.add("bg-[#FDF2F4]", "text-teams-danger");
+          clearTimeout(state.clearTimer); state.clearTimer = setTimeout(() => { state.clearPending = false; els.clearBtnLabel.textContent = "清除"; els.clearTranscriptBtn.classList.remove("bg-[#FDF2F4]", "text-teams-danger"); }, 3000);
+          return;
+        }
+        clearTimeout(state.clearTimer); state.clearPending = false; els.clearBtnLabel.textContent = "清除"; els.clearTranscriptBtn.classList.remove("bg-[#FDF2F4]", "text-teams-danger");
+        state.entries = []; renderTranscriptFeed(); showToast("已清除所有逐字稿");
+      }
+
+      function bindEvents() {
+        els.popupWindowBtn.addEventListener("click", openPopupMode);
+        els.overlayMicBtn.addEventListener("click", toggleMicrophone);
+        els.overlayThemeBtn.addEventListener("click", () => { state.popupDarkTheme = !state.popupDarkTheme; syncPopupView(); });
+        els.overlayFontDecBtn.addEventListener("click", () => { state.popupFontSize = Math.max(14, state.popupFontSize - 2); syncPopupView(); });
+        els.overlayFontIncBtn.addEventListener("click", () => { state.popupFontSize = Math.min(30, state.popupFontSize + 2); syncPopupView(); });
+        els.overlayCloseBtn.addEventListener("click", () => { closePopupMode(); showToast("已關閉懸浮視窗"); });
+        els.settingsGearBtn.addEventListener("click", (e) => { e.stopPropagation(); toggleSettingsPopover(); });
+        document.addEventListener("click", (e) => { if (!els.settingsPopover.contains(e.target) && !els.settingsGearBtn.contains(e.target)) toggleSettingsPopover(false); });
+        [els.barSpokenSelect, els.popoverSpokenSelect].forEach((sel) => sel.addEventListener("change", (e) => setLanguagePair(e.target.value, state.targetLang)));
+        [els.barTargetSelect, els.popoverTargetSelect].forEach((sel) => sel.addEventListener("change", (e) => setLanguagePair(state.spokenLang, e.target.value)));
+        els.swapLangBtn.addEventListener("click", swapLanguagePair);
+        els.pairPills.forEach((pill) => pill.addEventListener("click", () => { const [spoken, target] = pill.dataset.pair.split(":"); setLanguagePair(spoken, target); }));
+        els.toggleShowBothBtn.addEventListener("click", () => { state.showBoth = !state.showBoth; updateToggleSwitchUI(els.toggleShowBothBtn, els.toggleShowBothKnob, state.showBoth); renderTranscriptFeed(); });
+        els.toggleCantoneseColloquialBtn.addEventListener("click", () => { state.cantoneseColloquial = !state.cantoneseColloquial; updateToggleSwitchUI(els.toggleCantoneseColloquialBtn, els.toggleCantoneseColloquialKnob, state.cantoneseColloquial); showToast(state.cantoneseColloquial ? "已切換為廣東話地道口語模式" : "已切換為繁體書面語模式"); });
+        els.toggleAutoSpeakBtn.addEventListener("click", () => { state.autoSpeak = !state.autoSpeak; updateToggleSwitchUI(els.toggleAutoSpeakBtn, els.toggleAutoSpeakKnob, state.autoSpeak); showToast(state.autoSpeak ? "已開啟自動語音朗讀" : "已關閉自動語音朗讀"); });
+        els.copyAllTranscriptBtn.addEventListener("click", copyAllTranscriptText);
+        els.clearTranscriptBtn.addEventListener("click", handleClearTranscript);
+        els.dismissFallbackBtn.addEventListener("click", () => els.micFallbackBanner.classList.add("hidden"));
+        els.teamsMicBtn.addEventListener("click", toggleMicrophone);
+        function submitManualInput() {
+          const text = els.manualTextInput.value.trim();
+          if (!text) { els.manualTextInput.focus(); return; }
+          els.manualTextInput.value = ""; commitRecognizedSentence(text);
+        }
+        els.sendTextBtn.addEventListener("click", submitManualInput);
+        els.manualTextInput.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); submitManualInput(); } });
+        els.samplePhraseBtn.addEventListener("click", () => {
+          const samples = SPOKEN_LANGUAGES[state.spokenLang]?.samples || [];
+          if (samples.length === 0) return;
+          commitRecognizedSentence(samples[state.sampleCursor % samples.length]); state.sampleCursor += 1;
+        });
+        els.transcriptFeedList.addEventListener("click", (e) => {
+          const speakBtn = e.target.closest("[data-speak-text]"), copyBtn = e.target.closest("[data-copy-text]");
+          if (speakBtn) speakText(speakBtn.dataset.speakText, speakBtn.dataset.speakLang);
+          if (copyBtn) copyTextToClipboard(copyBtn.dataset.copyText);
+        });
+        if ("speechSynthesis" in window) { window.speechSynthesis.getVoices(); window.speechSynthesis.onvoiceschanged = () => window.speechSynthesis.getVoices(); }
+      }
+
+      window.onload = function () {
+        try {
+          const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+          state.speechSupported = Boolean(SpeechRecognition);
+          if (!state.speechSupported) {
+            els.micFallbackText.textContent = "此瀏覽器暫不支援語音識別，請使用 Chrome / Edge 或直接使用下方輸入框與「試講一句」。";
+            els.micFallbackBanner.classList.remove("hidden");
+          } else if (window.location.protocol === "file:") {
+            els.micFallbackText.textContent = "提示：目前以本機檔案 (file://) 開啟，按「開始說話」並點選「允許」一次後即可連續講多句；若要瀏覽器永久記住權限，請透過 localhost 或 HTTPS 開啟。";
+            els.micFallbackBanner.classList.remove("hidden");
+          }
+          bindEvents(); initOverlayDrag(); syncLanguageUI(); renderTranscriptFeed();
+        } catch (_) { showToast("初始化時發生錯誤，請重新整理頁面"); }
+      };
+    })();
+  </script>
+</body>
+</html>
