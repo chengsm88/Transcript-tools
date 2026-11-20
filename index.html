@@ -121,18 +121,65 @@
     #floatingOverlayCard {
       resize: both;
       overflow: hidden;
-      min-width: 290px;
-      min-height: 170px;
+      min-width: 300px;
+      min-height: 160px;
       max-width: calc(100vw - 1.5rem);
       max-height: calc(100vh - 2rem);
       box-shadow: 0 14px 38px rgba(0, 0, 0, 0.22), 0 2px 8px rgba(0, 0, 0, 0.12);
+    }
+
+    /* Fullscreen Stage Mode for Built-in Overlay */
+    #floatingOverlayCard.overlay-fullscreen {
+      position: fixed !important;
+      inset: 0 !important;
+      left: 0 !important;
+      top: 0 !important;
+      right: 0 !important;
+      bottom: 0 !important;
+      width: 100vw !important;
+      height: 100vh !important;
+      max-width: 100vw !important;
+      max-height: 100vh !important;
+      border-radius: 0 !important;
+      border: none !important;
+      resize: none !important;
+      z-index: 60 !important;
+    }
+
+    /* Text-only overlay hover reveal bar + centered text & shadow */
+    #floatingOverlayCard.text-only-mode #overlayDragHandle {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 48px;
+      z-index: 15;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.18s ease;
+      border-bottom-right-radius: 12px;
+    }
+    #floatingOverlayCard.text-only-mode:hover #overlayDragHandle {
+      opacity: 1;
+      pointer-events: auto;
+    }
+    #floatingOverlayCard.text-only-mode #overlayFeedBody {
+      display: flex;
+      flex-direction: column;
+      text-align: center;
+      padding: 24px 32px;
+    }
+    #floatingOverlayCard.text-only-mode.text-only-dark #overlayFeedBody {
+      text-shadow: 0 2px 8px rgba(0, 0, 0, 0.88), 0 0 2px rgba(0, 0, 0, 0.95);
+    }
+    #floatingOverlayCard.text-only-mode.text-only-light #overlayFeedBody {
+      text-shadow: 0 1px 3px rgba(0, 0, 0, 0.18);
     }
   </style>
 </head>
 <body class="bg-teams-canvas text-teams-text min-h-screen flex flex-col selection:bg-teams-primary/20 selection:text-teams-primary">
 
   <!-- Non-blocking Fluent Toast Container -->
-  <div id="toastContainer" class="fixed top-4 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-2 max-w-[92vw] pointer-events-none"></div>
+  <div id="toastContainer" class="fixed top-4 left-1/2 -translate-x-1/2 z-[70] flex flex-col items-center gap-2 max-w-[92vw] pointer-events-none"></div>
 
   <!-- Main Centered Teams Transcript Workspace -->
   <div class="flex-1 w-full max-w-4xl mx-auto px-2 sm:px-6 py-2 sm:py-5 flex flex-col">
@@ -162,7 +209,7 @@
           </div>
         </div>
 
-        <!-- Right: 整理重點, 匯出 (TXT/Word), Pop-up, Copy All, Settings Gear (⚙), Clear -->
+        <!-- Right: 整理重點, 匯出 (TXT/Word), Pop-up Menu, Copy All, Settings Gear (⚙), Clear -->
         <div class="flex items-center gap-1 sm:gap-1.5 shrink-0 flex-wrap">
           <!-- Meeting Key Points Organizer Button -->
           <button
@@ -263,20 +310,123 @@
             </div>
           </div>
 
-          <!-- Pop-up Floating Window Button -->
-          <button
-            id="popupWindowBtn"
-            type="button"
-            aria-label="開啟 Pop-up 懸浮翻譯視窗"
-            title="開啟 Pop-up 懸浮翻譯視窗"
-            class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-teams-primary bg-teams-primaryLight hover:bg-teams-primary hover:text-white border border-teams-primary/30 focus:outline-none focus:ring-2 focus:ring-teams-primary/40 transition"
-          >
-            <svg class="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
-            </svg>
-            <span class="hidden sm:inline">Pop-up 懸浮視窗</span>
-            <span class="sm:hidden">懸浮</span>
-          </button>
+          <!-- Pop-up Floating Window Dropdown (Standard / Text-only popup / Text-only Fullscreen) -->
+          <div class="relative">
+            <button
+              id="popupWindowBtn"
+              type="button"
+              aria-label="開啟 Pop-up 懸浮視窗或 Text-only popup"
+              aria-expanded="false"
+              title="開啟 Pop-up 懸浮視窗 / Text-only popup"
+              class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-teams-primary bg-teams-primaryLight hover:bg-teams-primary hover:text-white border border-teams-primary/30 focus:outline-none focus:ring-2 focus:ring-teams-primary/40 transition"
+            >
+              <svg class="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
+              </svg>
+              <span id="popupBtnLabel" class="hidden sm:inline">Pop-up 懸浮視窗</span>
+              <span class="sm:hidden">懸浮</span>
+              <svg class="w-3 h-3 opacity-80" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+              </svg>
+            </button>
+
+            <!-- Pop-up Mode Selector Popover -->
+            <div
+              id="popupPopover"
+              role="menu"
+              aria-label="懸浮視窗模式選擇"
+              class="fluent-popover popover-hidden absolute right-0 mt-2 w-[300px] bg-white rounded-xl p-1.5 z-50 space-y-0.5"
+            >
+              <div class="px-2.5 py-1.5 text-[11px] font-semibold text-teams-muted">
+                選擇懸浮視窗模式
+              </div>
+
+              <!-- Mode 1: Standard Popup -->
+              <button
+                id="openStandardPopupBtn"
+                type="button"
+                role="menuitem"
+                class="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-left text-xs font-medium text-teams-text hover:bg-teams-hover transition"
+              >
+                <span class="w-7 h-7 rounded-md bg-teams-primaryLight text-teams-primary flex items-center justify-center font-bold text-[11px] shrink-0">標準</span>
+                <div class="min-w-0 flex-1">
+                  <div class="flex items-center justify-between gap-1">
+                    <span class="font-semibold text-teams-text">標準懸浮視窗</span>
+                    <span id="standardActiveTag" class="hidden text-[10px] font-bold text-teams-primary">使用中</span>
+                  </div>
+                  <div class="text-[11px] text-teams-muted truncate">附工具列、語言標籤及麥克風控制</div>
+                </div>
+              </button>
+
+              <!-- Mode 2: Text-only popup -->
+              <button
+                id="openTextOnlyPopupBtn"
+                type="button"
+                role="menuitem"
+                class="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-left text-xs font-medium text-teams-text hover:bg-teams-hover transition"
+              >
+                <span class="w-7 h-7 rounded-md bg-[#19231E] text-white flex items-center justify-center font-bold text-[11px] shrink-0">Aa</span>
+                <div class="min-w-0 flex-1">
+                  <div class="flex items-center justify-between gap-1">
+                    <span class="font-semibold text-teams-text">Text-only popup</span>
+                    <span id="textOnlyActiveTag" class="hidden text-[10px] font-bold text-teams-primary">使用中</span>
+                  </div>
+                  <div class="text-[11px] text-teams-muted truncate">純文字置中陰影字幕（支援全螢幕）</div>
+                </div>
+              </button>
+
+              <!-- Mode 3: Direct Text-only Fullscreen -->
+              <button
+                id="openTextOnlyFullscreenBtn"
+                type="button"
+                role="menuitem"
+                class="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-left text-xs font-medium text-teams-text hover:bg-teams-hover transition"
+              >
+                <span class="w-7 h-7 rounded-md bg-teams-primary text-white flex items-center justify-center font-bold text-[12px] shrink-0">⛶</span>
+                <div class="min-w-0 flex-1">
+                  <div class="flex items-center justify-between gap-1">
+                    <span class="font-semibold text-teams-text">Text-only 全螢幕顯示</span>
+                    <span id="textOnlyFsActiveTag" class="hidden text-[10px] font-bold text-teams-primary">全螢幕中</span>
+                  </div>
+                  <div class="text-[11px] text-teams-muted truncate">一鍵全螢幕置中即時翻譯字幕舞台</div>
+                </div>
+              </button>
+
+              <!-- Sentence Count Setting (Min 3, Max 6) -->
+              <div class="my-1 border-t border-teams-subtle"></div>
+              <div class="px-2.5 py-1.5 flex items-center justify-between gap-2">
+                <div class="min-w-0">
+                  <div class="text-xs font-semibold text-teams-text">Text-only 顯示句數</div>
+                  <div class="text-[10px] text-teams-muted">最少 3 句，最多 6 句</div>
+                </div>
+                <div class="inline-flex items-center gap-1 bg-[#F5F5F5] border border-teams-border rounded-lg p-0.5 shrink-0">
+                  <button
+                    id="popoverSentDecBtn"
+                    type="button"
+                    title="減少顯示句數（最少 3 句）"
+                    class="w-6 h-6 rounded-md text-xs font-bold text-teams-text hover:bg-white disabled:opacity-35 disabled:pointer-events-none transition"
+                  >-</button>
+                  <span id="popoverSentCountLabel" class="px-1.5 text-xs font-bold text-teams-primary select-none">3 句</span>
+                  <button
+                    id="popoverSentIncBtn"
+                    type="button"
+                    title="增加顯示句數（最多 6 句）"
+                    class="w-6 h-6 rounded-md text-xs font-bold text-teams-text hover:bg-white disabled:opacity-35 disabled:pointer-events-none transition"
+                  >+</button>
+                </div>
+              </div>
+
+              <div id="popupCloseDivider" class="hidden my-1 border-t border-teams-subtle"></div>
+              <button
+                id="closeActivePopupBtn"
+                type="button"
+                role="menuitem"
+                class="hidden w-full flex items-center justify-center gap-1.5 px-2.5 py-2 rounded-lg text-xs font-semibold text-teams-danger hover:bg-[#FDF2F4] transition"
+              >
+                <span>✕ 關閉目前懸浮視窗</span>
+              </button>
+            </div>
+          </div>
 
           <!-- Copy All Sentences Button -->
           <button
@@ -718,7 +868,7 @@
         <div id="summaryEditorWrapper" class="space-y-1.5">
           <div class="flex items-center justify-between text-[11px] text-teams-muted">
             <span>可直接修改下方內容再複製或匯出：</span>
-            <span id="summaryEngineBadge" class="px-2 py-0.5 rounded-full bg-teams-primaryLight text-teams-primary font-semibold">智能重点分析</span>
+            <span id="summaryEngineBadge" class="px-2 py-0.5 rounded-full bg-teams-primaryLight text-teams-primary font-semibold">智能重點整理</span>
           </div>
           <textarea
             id="summaryEditableArea"
@@ -766,17 +916,26 @@
   </div>
 
   <!-- ======================================================================= -->
-  <!-- TERTIARY FALLBACK: DRAGGABLE & RESIZABLE FLOATING MINI-OVERLAY          -->
+  <!-- TERTIARY FALLBACK / FULLSCREEN STAGE OVERLAY                            -->
   <!-- ======================================================================= -->
   <aside
     id="floatingOverlayCard"
     aria-label="懸浮即時翻譯視窗"
-    class="hidden fixed bottom-20 right-3 sm:right-6 z-50 w-[360px] sm:w-[440px] h-[250px] rounded-2xl border border-[#3B3B45] bg-[#1B1B1F] text-white flex-col select-none transition-colors"
+    class="hidden fixed bottom-20 right-3 sm:right-6 z-50 w-[380px] sm:w-[460px] h-[250px] rounded-2xl border border-[#3B3B45] bg-[#19231E] text-white flex-col select-none transition-colors"
   >
-    <!-- Draggable Overlay Top Bar -->
+    <!-- Top-Right Persistent Close Button for Text-only / Fullscreen Mode -->
+    <button
+      id="overlayStageCloseBtn"
+      type="button"
+      title="關閉懸浮 / 全螢幕視窗"
+      aria-label="關閉懸浮 / 全螢幕視窗"
+      class="hidden fixed top-3 right-3 z-20 w-8 h-8 rounded-lg border border-[#D4AF37]/65 bg-black/30 hover:bg-black/60 text-white/85 hover:text-white flex items-center justify-center text-sm transition"
+    >✕</button>
+
+    <!-- Draggable Overlay Top Bar (Auto-hides in Text-only mode until hover) -->
     <div
       id="overlayDragHandle"
-      class="flex items-center justify-between gap-1.5 px-3 py-2 bg-[#26262C] border-b border-white/10 cursor-move shrink-0"
+      class="flex items-center justify-between gap-1.5 px-3 py-2 bg-[#26262C] border-b border-white/10 cursor-move shrink-0 flex-wrap"
     >
       <div class="flex items-center gap-1.5 min-w-0">
         <span class="text-white/50 text-xs" aria-hidden="true">⋮⋮</span>
@@ -785,31 +944,43 @@
         </span>
       </div>
 
-      <!-- Mini Controls: Mic, Light/Dark Toggle, A-, A+, Close -->
-      <div class="flex items-center gap-1 shrink-0">
+      <!-- Mini Controls -->
+      <div class="flex items-center gap-1 shrink-0 flex-wrap">
         <button id="overlayMicBtn" type="button" title="開始 / 停止說話" class="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-semibold bg-teams-primary hover:bg-teams-primaryHover text-white transition">
           <span id="overlayMicDot" class="w-1.5 h-1.5 rounded-full bg-white"></span>
           <span id="overlayMicLabel">開始說話</span>
         </button>
-        <button id="overlayThemeBtn" type="button" title="切換淺色 / 深色字幕背景" class="px-1.5 py-1 rounded-md text-[11px] font-medium bg-white/10 hover:bg-white/20 transition">☀️</button>
+
+        <!-- Sentence Limit Controls (3 to 6 sentences) in Text-only mode -->
+        <div id="overlaySentLimitGroup" class="hidden inline-flex items-center gap-0.5 bg-white/10 rounded-md px-1 py-0.5">
+          <button id="overlaySentDecBtn" type="button" title="減少顯示句數（最少 3 句）" class="px-1.5 py-0.5 rounded text-[11px] font-bold hover:bg-white/20 disabled:opacity-35">-</button>
+          <span id="overlaySentCountLabel" class="px-1 text-[11px] font-semibold">3句</span>
+          <button id="overlaySentIncBtn" type="button" title="增加顯示句數（最多 6 句）" class="px-1.5 py-0.5 rounded text-[11px] font-bold hover:bg-white/20 disabled:opacity-35">+</button>
+        </div>
+
+        <button id="overlayOrigToggleBtn" type="button" title="顯示 / 隱藏原文" class="hidden px-1.5 py-1 rounded-md text-[11px] font-semibold bg-white/10 hover:bg-white/20 transition">原文</button>
+        <button id="overlayThemeBtn" type="button" title="切換字幕背景" class="px-1.5 py-1 rounded-md text-[11px] font-medium bg-white/10 hover:bg-white/20 transition">☀️</button>
         <button id="overlayFontDecBtn" type="button" title="縮小字體" class="px-1.5 py-1 rounded-md text-[11px] font-bold bg-white/10 hover:bg-white/20 transition">A-</button>
         <button id="overlayFontIncBtn" type="button" title="放大字體" class="px-1.5 py-1 rounded-md text-[11px] font-bold bg-white/10 hover:bg-white/20 transition">A+</button>
+        <button id="overlayFullscreenBtn" type="button" title="切換全螢幕顯示" class="hidden px-1.5 py-1 rounded-md text-[11px] font-semibold bg-white/10 hover:bg-white/20 transition">⛶ 全螢幕</button>
         <button id="overlayCloseBtn" type="button" title="關閉懸浮視窗" class="p-1 rounded-md text-xs opacity-75 hover:opacity-100 hover:bg-white/10 transition">✕</button>
       </div>
     </div>
 
     <!-- Overlay Content Stream -->
     <div id="overlayFeedBody" class="flex-1 overflow-y-auto px-3.5 py-2.5 space-y-2.5 select-text">
-      <div id="overlayEmptyHint" class="h-full flex items-center justify-center text-xs opacity-65 text-center px-3">
-        點擊「開始說話」，即時翻譯句子將會同步顯示於此懸浮視窗
+      <div id="overlayEmptyHint" class="my-auto flex items-center justify-center text-sm opacity-75 text-center px-3">
+        Waiting for translation...
       </div>
-      <div id="overlaySentencesList" class="space-y-2.5"></div>
-      <div id="overlayInterimBox" class="hidden rounded-lg px-2.5 py-1.5 bg-teams-primary/20 border border-teams-primary/40 text-xs space-y-1">
-        <div>
-          <span class="font-semibold text-[#A5A9FF] mr-1">聆聽中：</span>
-          <span id="overlayInterimText"></span>
+      <div id="overlayCenterStageWrapper" class="my-auto w-full flex flex-col gap-3">
+        <div id="overlaySentencesList" class="space-y-3"></div>
+        <div id="overlayInterimBox" class="hidden rounded-lg px-2.5 py-1.5 bg-teams-primary/20 border border-teams-primary/40 text-xs space-y-1">
+          <div id="overlayInterimOrigRow">
+            <span class="font-semibold text-[#A5A9FF] mr-1">聆聽中：</span>
+            <span id="overlayInterimText"></span>
+          </div>
+          <div id="overlayInterimTrans" class="space-y-0.5 text-[13px] font-medium"></div>
         </div>
-        <div id="overlayInterimTrans" class="space-y-0.5 text-[13px] font-medium"></div>
       </div>
     </div>
   </aside>
@@ -844,6 +1015,9 @@
         "es": { shortName: "西班牙文", badgeName: "Español", ttsLang: "es-ES", gtxCode: "es", spokenCode: "es-ES" }
       };
 
+      const TEXT_ONLY_MIN_SENTENCES = 3;
+      const TEXT_ONLY_MAX_SENTENCES = 6;
+
       const state = {
         spokenLang: "en-US",
         targetLang: "BOTH",
@@ -855,6 +1029,7 @@
         speechSupported: false,
         recognition: null,
         recognitionSessionId: 0,
+        restartBackoffMs: 150,
         interimBuffer: "",
         liveInterimTranslations: {},
         interimDebounceTimer: null,
@@ -865,10 +1040,16 @@
         sampleCursor: 0,
         clearPending: false,
         clearTimer: null,
-        popupMode: "none",
+        popupMode: "none",           // "none" | "pip" | "window" | "overlay"
+        popupVariant: "standard",    // "standard" | "text-only"
         popupWindowRef: null,
         popupDarkTheme: true,
         popupFontSize: 18,
+        textOnlyTheme: "dark",       // "dark" (#19231E) | "black" (#000000) | "light" (#FFFFFF)
+        textOnlyFontSize: 28,
+        textOnlyShowOriginal: false,
+        textOnlyMaxSentences: 3,     // Clamped between 3 and 6
+        textOnlyFullscreen: false,
         entries: [],
         lastGeneratedSummary: "",
         lastSummaryEntryCount: -1,
@@ -890,6 +1071,19 @@
         exportFullTxtBtn: document.getElementById("exportFullTxtBtn"),
         exportFullWordBtn: document.getElementById("exportFullWordBtn"),
         popupWindowBtn: document.getElementById("popupWindowBtn"),
+        popupBtnLabel: document.getElementById("popupBtnLabel"),
+        popupPopover: document.getElementById("popupPopover"),
+        openStandardPopupBtn: document.getElementById("openStandardPopupBtn"),
+        openTextOnlyPopupBtn: document.getElementById("openTextOnlyPopupBtn"),
+        openTextOnlyFullscreenBtn: document.getElementById("openTextOnlyFullscreenBtn"),
+        standardActiveTag: document.getElementById("standardActiveTag"),
+        textOnlyActiveTag: document.getElementById("textOnlyActiveTag"),
+        textOnlyFsActiveTag: document.getElementById("textOnlyFsActiveTag"),
+        popoverSentDecBtn: document.getElementById("popoverSentDecBtn"),
+        popoverSentCountLabel: document.getElementById("popoverSentCountLabel"),
+        popoverSentIncBtn: document.getElementById("popoverSentIncBtn"),
+        popupCloseDivider: document.getElementById("popupCloseDivider"),
+        closeActivePopupBtn: document.getElementById("closeActivePopupBtn"),
         copyAllTranscriptBtn: document.getElementById("copyAllTranscriptBtn"),
         settingsGearBtn: document.getElementById("settingsGearBtn"),
         settingsPopover: document.getElementById("settingsPopover"),
@@ -944,19 +1138,28 @@
         modalExportFullWordBtn: document.getElementById("modalExportFullWordBtn"),
         // Floating Overlay Elements
         floatingOverlayCard: document.getElementById("floatingOverlayCard"),
+        overlayStageCloseBtn: document.getElementById("overlayStageCloseBtn"),
         overlayDragHandle: document.getElementById("overlayDragHandle"),
         overlayPairBadge: document.getElementById("overlayPairBadge"),
         overlayMicBtn: document.getElementById("overlayMicBtn"),
         overlayMicDot: document.getElementById("overlayMicDot"),
         overlayMicLabel: document.getElementById("overlayMicLabel"),
+        overlaySentLimitGroup: document.getElementById("overlaySentLimitGroup"),
+        overlaySentDecBtn: document.getElementById("overlaySentDecBtn"),
+        overlaySentCountLabel: document.getElementById("overlaySentCountLabel"),
+        overlaySentIncBtn: document.getElementById("overlaySentIncBtn"),
+        overlayOrigToggleBtn: document.getElementById("overlayOrigToggleBtn"),
         overlayThemeBtn: document.getElementById("overlayThemeBtn"),
         overlayFontDecBtn: document.getElementById("overlayFontDecBtn"),
         overlayFontIncBtn: document.getElementById("overlayFontIncBtn"),
+        overlayFullscreenBtn: document.getElementById("overlayFullscreenBtn"),
         overlayCloseBtn: document.getElementById("overlayCloseBtn"),
         overlayFeedBody: document.getElementById("overlayFeedBody"),
         overlayEmptyHint: document.getElementById("overlayEmptyHint"),
+        overlayCenterStageWrapper: document.getElementById("overlayCenterStageWrapper"),
         overlaySentencesList: document.getElementById("overlaySentencesList"),
         overlayInterimBox: document.getElementById("overlayInterimBox"),
+        overlayInterimOrigRow: document.getElementById("overlayInterimOrigRow"),
         overlayInterimText: document.getElementById("overlayInterimText"),
         overlayInterimTrans: document.getElementById("overlayInterimTrans")
       };
@@ -1034,7 +1237,7 @@
         if (spokenChanged && state.isRecording) {
           teardownRecognition();
           clearTimeout(state.restartTimer);
-          state.restartTimer = setTimeout(() => { if (state.isRecording) createAndStartRecognition(); }, 150);
+          state.restartTimer = setTimeout(() => { if (state.isRecording) createAndStartRecognition(true); }, 150);
           showToast(`已切換語音辨識引擎：${SPOKEN_LANGUAGES[newSpoken].engineLabel}`);
         }
       }
@@ -1058,6 +1261,7 @@
         const shouldOpen = typeof forceState === "boolean" ? forceState : isHidden;
         if (shouldOpen) {
           toggleExportPopover(false);
+          togglePopupPopover(false);
           els.settingsPopover.classList.remove("popover-hidden");
           els.settingsGearBtn.setAttribute("aria-expanded", "true");
           els.settingsGearBtn.classList.add("bg-teams-hover", "text-teams-primary");
@@ -1073,6 +1277,7 @@
         const shouldOpen = typeof forceState === "boolean" ? forceState : isHidden;
         if (shouldOpen) {
           toggleSettingsPopover(false);
+          togglePopupPopover(false);
           els.exportPopover.classList.remove("popover-hidden");
           els.exportMenuBtn.setAttribute("aria-expanded", "true");
           els.exportMenuBtn.classList.add("bg-teams-hover", "border-teams-primary/40");
@@ -1080,6 +1285,20 @@
           els.exportPopover.classList.add("popover-hidden");
           els.exportMenuBtn.setAttribute("aria-expanded", "false");
           els.exportMenuBtn.classList.remove("bg-teams-hover", "border-teams-primary/40");
+        }
+      }
+
+      function togglePopupPopover(forceState) {
+        const isHidden = els.popupPopover.classList.contains("popover-hidden");
+        const shouldOpen = typeof forceState === "boolean" ? forceState : isHidden;
+        if (shouldOpen) {
+          toggleSettingsPopover(false);
+          toggleExportPopover(false);
+          els.popupPopover.classList.remove("popover-hidden");
+          els.popupWindowBtn.setAttribute("aria-expanded", "true");
+        } else {
+          els.popupPopover.classList.add("popover-hidden");
+          els.popupWindowBtn.setAttribute("aria-expanded", "false");
         }
       }
 
@@ -1109,7 +1328,7 @@
 
       function renderTranscriptFeed() {
         if (state.entries.length === 0) {
-          els.transcriptFeedList.innerHTML = `<div class="py-14 sm:py-20 px-4 text-center space-y-3"><div class="w-12 h-12 mx-auto rounded-full bg-teams-primaryLight text-teams-primary flex items-center justify-center"><svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.9"><path stroke-linecap="round" stroke-linejoin="round" d="M12 18.75a6 6 0 006-6v-1.5m-6 7.5a6 6 0 01-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 01-3-3V4.5a3 3 0 116 0v8.25a3 3 0 01-3 3z" /></svg></div><p class="text-[15px] font-semibold text-teams-text">選擇語言方向（支援「另外兩種語言」雙語輸出），按「開始說話」或「試講一句」即時翻譯</p><p class="text-xs text-teams-muted">完成對話後，可點擊上方「整理重點」自動歸納會議紀要，或「匯出」成 TXT / Word (.docx)</p></div>`;
+          els.transcriptFeedList.innerHTML = `<div class="py-14 sm:py-20 px-4 text-center space-y-3"><div class="w-12 h-12 mx-auto rounded-full bg-teams-primaryLight text-teams-primary flex items-center justify-center"><svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.9"><path stroke-linecap="round" stroke-linejoin="round" d="M12 18.75a6 6 0 006-6v-1.5m-6 7.5a6 6 0 01-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 01-3-3V4.5a3 3 0 116 0v8.25a3 3 0 01-3 3z" /></svg></div><p class="text-[15px] font-semibold text-teams-text">選擇語言方向（支援「另外兩種語言」雙語輸出），按「開始說話」或「試講一句」即時翻譯</p><p class="text-xs text-teams-muted">開始說話後將持續保持監聽直到手動按「停止說話」；完成後可按上方「整理重點」或「匯出」</p></div>`;
           syncPopupView();
           return;
         }
@@ -1250,12 +1469,10 @@
         if (summaryLang === "ja" && entry.translations.ja) return entry.translations.ja;
         if (summaryLang === "ko" && entry.translations.ko) return entry.translations.ko;
 
-        // If spoken language already matches summaryLang
         const canonical = SPOKEN_LANGUAGES[entry.spokenLang]?.canonicalTarget;
         if (canonical === summaryLang || (summaryLang === "zh-TW" && canonical === "yue")) {
           return entry.original;
         }
-        // Return first available translation or original
         const firstTrans = Object.values(entry.translations)[0];
         return firstTrans || entry.original;
       }
@@ -1309,7 +1526,6 @@
       }
 
       async function generateSummaryHeuristic(entries, summaryLang, summaryStyle) {
-        // Gather best sentences & classify by intent
         const decisionRegex = /(決定|確認|同意|敲定|通過|落實|就咁定|沒問題|冇問題|確定|final|finalize|finalized|confirm|confirmed|agreed|agree|approve|approved|decided|decision|確定|決定|確認し|決定し|확정|결정)/i;
         const actionRegex = /(跟進|負責|幫手|幫忙|安排|提交|發送|準備|確認一下|睇下|看一下|明天|聽日|下週|下星期|下周|截止|請|麻煩|唔該|follow up|action|send|share|update|prepare|check|review|please|could you|tomorrow|next week|schedule|agenda|quote|quotation|確認|提出|共有|スケジュール|確認해|진행|일정|제안서)/i;
         const greetingOnlyRegex = /^(hello|hi|good morning|good afternoon|good evening|大家好|各位早晨|早晨|你好|おはようございます|こんにちは|안녕하세요)[!！.。，,\s]*$/i;
@@ -1321,7 +1537,6 @@
           const combinedSearch = `${entry.original} ${Object.values(entry.translations).join(" ")}`;
           let textForLang = getBestTextForSummaryLang(entry, summaryLang);
 
-          // Check if textForLang likely needs translation into summaryLang
           const hasTargetAlready =
             (summaryLang === "yue" && Boolean(entry.translations.yue)) ||
             (summaryLang === "zh-TW" && Boolean(entry.translations.yue)) ||
@@ -1335,9 +1550,7 @@
             try {
               const targetCode = summaryLang === "zh-TW" ? "yue" : summaryLang;
               textForLang = await translateSingleViaGTX(entry.original, entry.spokenLang, targetCode);
-            } catch (_) {
-              // Keep fallback text
-            }
+            } catch (_) {}
           }
 
           const clean = (textForLang || "").trim();
@@ -1364,7 +1577,6 @@
         const dateStr = new Date().toLocaleDateString("zh-HK", { year: "numeric", month: "2-digit", day: "2-digit" });
         const count = entries.length;
 
-        // Build localized template
         if (summaryLang === "en") {
           const overview = `Meeting recorded on ${dateStr} (${count} utterances). Key topics covered: ${discussion.slice(0, 2).join(" / ")}.`;
           if (summaryStyle === "bullets") {
@@ -1475,7 +1687,6 @@
           ].join("\n");
         }
 
-        // Default: Cantonese ("yue") or Standard Traditional Chinese ("zh-TW")
         const isCantonese = summaryLang === "yue";
         const overview = isCantonese
           ? `是次會議紀錄於 ${dateStr}（共 ${count} 句對話），主要圍繞以下內容進行討論：${discussion.slice(0, 2).join("；")}。`
@@ -1641,7 +1852,6 @@
         return lines.join("\r\n");
       }
 
-      // Pure JS Zero-Dependency OOXML (.docx) Builder (Standard PKZIP STORE + WordprocessingML)
       const CRC32_TABLE = (() => {
         const table = new Uint32Array(256);
         for (let i = 0; i < 256; i++) {
@@ -1688,13 +1898,12 @@
           const crc = computeCrc32(dataBytes);
           const size = dataBytes.length;
 
-          // Local file header (30 bytes + nameBytes)
           const localHeader = new Uint8Array(30 + nameBytes.length);
           const lv = new DataView(localHeader.buffer);
           lv.setUint32(0, 0x04034b50, true);
           lv.setUint16(4, 20, true);
-          lv.setUint16(6, 0x0800, true); // UTF-8 filename flag
-          lv.setUint16(8, 0, true);      // STORE (no compression)
+          lv.setUint16(6, 0x0800, true);
+          lv.setUint16(8, 0, true);
           lv.setUint16(10, dosTime, true);
           lv.setUint16(12, dosDate, true);
           lv.setUint32(14, crc, true);
@@ -1706,7 +1915,6 @@
 
           localParts.push(localHeader, dataBytes);
 
-          // Central directory header (46 bytes + nameBytes)
           const centralHeader = new Uint8Array(46 + nameBytes.length);
           const cv = new DataView(centralHeader.buffer);
           cv.setUint32(0, 0x02014b50, true);
@@ -1774,7 +1982,6 @@
         const pairStr = getPairLabel(state.spokenLang, state.targetLang);
         const bodyParagraphs = [];
 
-        // Document Header
         bodyParagraphs.push(buildWordParagraphXml(
           [{ text: "Teams 即時多國語言會議翻譯紀錄", bold: true, color: "5B5FC7", sizePt: 18 }],
           { spaceBefore: 0, spaceAfter: 80, lineSpacing: 340 }
@@ -1785,7 +1992,6 @@
           { spaceBefore: 0, spaceAfter: 220, shadingFill: "F5F6FA", bottomBorder: true }
         ));
 
-        // Meeting Key Points Section
         if (summaryText && summaryText.trim()) {
           bodyParagraphs.push(buildWordParagraphXml(
             [{ text: "開會重點內容整理", bold: true, color: "5B5FC7", sizePt: 14 }],
@@ -1818,7 +2024,6 @@
           bodyParagraphs.push(buildWordParagraphXml([{ text: "", sizePt: 10 }], { spaceAfter: 160, bottomBorder: true }));
         }
 
-        // Transcript Entries Section
         if (includeTranscript && state.entries.length > 0) {
           bodyParagraphs.push(buildWordParagraphXml(
             [{ text: "會議翻譯逐字稿", bold: true, color: "5B5FC7", sizePt: 14 }],
@@ -1911,7 +2116,6 @@
 
         if (format === "txt") {
           const txtContent = buildPlainTextReport({ includeTranscript, summaryText });
-          // Prepend UTF-8 BOM (\uFEFF) so Windows/Mac text editors render CJK cleanly
           const blob = new Blob(["\uFEFF" + txtContent], { type: "text/plain;charset=utf-8" });
           triggerBlobDownload(blob, `${baseName}.txt`);
           showToast(`已成功匯出 ${baseName}.txt`);
@@ -1923,17 +2127,127 @@
       }
 
       // =====================================================================
-      // POP-UP & FLOATING OVERLAY WINDOW
+      // POP-UP, TEXT-ONLY POPUP & FULLSCREEN STAGE ENGINE
       // =====================================================================
+      function adjustTextOnlySentenceLimit(delta) {
+        const next = Math.min(TEXT_ONLY_MAX_SENTENCES, Math.max(TEXT_ONLY_MIN_SENTENCES, state.textOnlyMaxSentences + delta));
+        state.textOnlyMaxSentences = next;
+        updatePopupButtonVisualState();
+        syncPopupView();
+      }
+
+      function getTextOnlyVisibleSlices(interimStr) {
+        const maxCount = Math.min(TEXT_ONLY_MAX_SENTENCES, Math.max(TEXT_ONLY_MIN_SENTENCES, state.textOnlyMaxSentences));
+        const reservedForInterim = interimStr ? 1 : 0;
+        const finalizedLimit = Math.max(1, maxCount - reservedForInterim);
+        return {
+          maxCount,
+          recentEntries: state.entries.slice(-finalizedLimit)
+        };
+      }
+
       function updatePopupButtonVisualState() {
-        els.popupWindowBtn.className = state.popupMode !== "none" ? "inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-white bg-teams-primary hover:bg-teams-primaryHover border border-teams-primary focus:outline-none focus:ring-2 focus:ring-teams-primary/40 transition" : "inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-teams-primary bg-teams-primaryLight hover:bg-teams-primary hover:text-white border border-teams-primary/30 focus:outline-none focus:ring-2 focus:ring-teams-primary/40 transition";
+        const isActive = state.popupMode !== "none";
+        const isTextOnly = isActive && state.popupVariant === "text-only";
+        const isStandard = isActive && state.popupVariant === "standard";
+        const isFs = isTextOnly && state.textOnlyFullscreen;
+
+        els.popupWindowBtn.className = isActive
+          ? "inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-white bg-teams-primary hover:bg-teams-primaryHover border border-teams-primary focus:outline-none focus:ring-2 focus:ring-teams-primary/40 transition"
+          : "inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-teams-primary bg-teams-primaryLight hover:bg-teams-primary hover:text-white border border-teams-primary/30 focus:outline-none focus:ring-2 focus:ring-teams-primary/40 transition";
+
+        els.popupBtnLabel.textContent = isFs ? "Text-only 全螢幕" : isTextOnly ? "Text-only popup" : "Pop-up 懸浮視窗";
+        els.standardActiveTag.classList.toggle("hidden", !isStandard);
+        els.textOnlyActiveTag.classList.toggle("hidden", !(isTextOnly && !isFs));
+        els.textOnlyFsActiveTag.classList.toggle("hidden", !isFs);
+
+        const count = state.textOnlyMaxSentences;
+        els.popoverSentCountLabel.textContent = `${count} 句`;
+        els.popoverSentDecBtn.disabled = count <= TEXT_ONLY_MIN_SENTENCES;
+        els.popoverSentIncBtn.disabled = count >= TEXT_ONLY_MAX_SENTENCES;
+
+        els.popupCloseDivider.classList.toggle("hidden", !isActive);
+        els.closeActivePopupBtn.classList.toggle("hidden", !isActive);
       }
 
       function buildExternalPopupHTML() {
         return `<!DOCTYPE html><html lang="zh-HK"><head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" /><title>即時懸浮翻譯 | Live Subtitles</title><style>* { box-sizing: border-box; margin: 0; padding: 0; } body { font-family: 'Segoe UI', 'Inter', 'Noto Sans TC', system-ui, -apple-system, sans-serif; display: flex; flex-direction: column; height: 100vh; overflow: hidden; transition: background-color 0.18s ease, color 0.18s ease; } body.theme-dark { background: #1B1B1F; color: #FFFFFF; } body.theme-light { background: #FFFFFF; color: #242424; } .topbar { display: flex; align-items: center; justify-content: space-between; gap: 6px; padding: 8px 12px; border-bottom: 1px solid rgba(128,128,128,0.22); flex-shrink: 0; } body.theme-dark .topbar { background: #26262C; } body.theme-light .topbar { background: #F5F5F5; } .pair-badge { display: inline-flex; align-items: center; padding: 3px 9px; border-radius: 999px; font-size: 11px; font-weight: 600; background: #5B5FC7; color: #FFFFFF; white-space: nowrap; } .controls { display: flex; align-items: center; gap: 5px; } button { border: none; border-radius: 6px; padding: 4px 8px; font-size: 11px; font-weight: 600; cursor: pointer; transition: opacity 0.15s ease, background-color 0.15s ease; } button:hover { opacity: 0.9; } .btn-mic { background: #5B5FC7; color: #FFFFFF; display: inline-flex; align-items: center; gap: 5px; } .btn-mic.live { background: #C4314B; } .dot { width: 6px; height: 6px; border-radius: 50%; background: #FFFFFF; } body.theme-dark .btn-tool { background: rgba(255,255,255,0.12); color: #FFFFFF; } body.theme-light .btn-tool { background: #E6E6E6; color: #242424; } .stream { flex: 1; overflow-y: auto; padding: 12px 14px; display: flex; flex-direction: column; gap: 10px; } .entry { padding-bottom: 8px; border-bottom: 1px solid rgba(128,128,128,0.16); display: flex; flex-direction: column; gap: 4px; } .entry:last-child { border-bottom: none; padding-bottom: 0; } .trans-row { display: flex; align-items: baseline; gap: 6px; } .lang-tag { font-size: 10px; font-weight: 700; padding: 1px 5px; border-radius: 4px; background: rgba(91, 95, 199, 0.22); color: #8E92F8; flex-shrink: 0; } body.theme-light .lang-tag { background: #EEF0FC; color: #5B5FC7; } .translated { font-weight: 500; line-height: 1.46; word-break: break-word; } .original { font-size: 13px; line-height: 1.42; margin-top: 2px; word-break: break-word; } body.theme-dark .original { color: #B4B4BE; } body.theme-light .original { color: #616161; } .interim { border-radius: 8px; padding: 8px 10px; font-size: 13px; line-height: 1.45; background: rgba(91, 95, 199, 0.18); border: 1px solid rgba(91, 95, 199, 0.42); display: flex; flex-direction: column; gap: 4px; } .interim-tag { font-weight: 700; color: #7C81F7; margin-right: 4px; } .empty { margin: auto; text-align: center; font-size: 13px; opacity: 0.7; padding: 12px; }</style></head><body class="theme-dark"><div class="topbar"><span id="extPairBadge" class="pair-badge">英文 ➔ 廣東話 + 普通話</span><div class="controls"><button id="extMicBtn" type="button" class="btn-mic"><span class="dot"></span><span id="extMicLabel">開始說話</span></button><button id="extThemeBtn" type="button" class="btn-tool" title="切換淺色 / 深色背景">☀️</button><button id="extFontDecBtn" type="button" class="btn-tool" title="縮小字體">A-</button><button id="extFontIncBtn" type="button" class="btn-tool" title="放大字體">A+</button></div></div><div id="extStream" class="stream"><div id="extEmpty" class="empty">點擊「開始說話」，精準雙語翻譯句子將會即時顯示於此懸浮視窗</div><div id="extList"></div><div id="extInterimBox" class="interim" style="display:none;"><div><span class="interim-tag">聆聽中：</span><span id="extInterimText"></span></div><div id="extInterimTrans"></div></div></div></body></html>`;
       }
 
-      function wireExternalPopupEvents(popupDoc) {
+      function buildTextOnlyPopupHTML() {
+        return `<!DOCTYPE html><html lang="zh-HK"><head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" /><title>Text-only popup</title><style>* { box-sizing: border-box; margin: 0; padding: 0; } body { font-family: 'Segoe UI', 'Inter', 'Noto Sans TC', system-ui, -apple-system, sans-serif; height: 100vh; overflow: hidden; display: flex; flex-direction: column; position: relative; transition: background-color 0.18s ease, color 0.18s ease; } body.theme-dark { background: #19231E; color: #FFFFFF; text-shadow: 0 2px 8px rgba(0, 0, 0, 0.88), 0 0 2px rgba(0, 0, 0, 0.95); } body.theme-black { background: #000000; color: #FFFFFF; text-shadow: 0 2px 8px rgba(0, 0, 0, 0.92), 0 0 2px rgba(0, 0, 0, 0.98); } body.theme-light { background: #FFFFFF; color: #1A1A1A; text-shadow: 0 1px 3px rgba(0, 0, 0, 0.18); } .close-corner { position: fixed; top: 12px; right: 14px; z-index: 25; width: 32px; height: 32px; border-radius: 8px; border: 1px solid rgba(212, 175, 55, 0.65); background: rgba(0, 0, 0, 0.25); color: rgba(255, 255, 255, 0.85); font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background-color 0.15s ease, opacity 0.15s ease; } body.theme-light .close-corner { background: rgba(0, 0, 0, 0.06); color: #242424; border-color: rgba(160, 130, 40, 0.55); } .close-corner:hover { background: rgba(0, 0, 0, 0.55); color: #FFFFFF; } .hover-controls { position: fixed; top: 12px; left: 50%; transform: translateX(-50%); z-index: 20; display: flex; align-items: center; flex-wrap: wrap; justify-content: center; gap: 4px; padding: 5px 8px; border-radius: 10px; background: rgba(20, 24, 22, 0.86); backdrop-filter: blur(8px); opacity: 0; pointer-events: none; transition: opacity 0.16s ease; text-shadow: none; } body.theme-light .hover-controls { background: rgba(242, 242, 246, 0.94); border: 1px solid #DCDCE0; } body:hover .hover-controls { opacity: 1; pointer-events: auto; } .hover-controls button { border: none; border-radius: 5px; padding: 4px 8px; font-size: 11px; font-weight: 600; cursor: pointer; background: rgba(255,255,255,0.14); color: #FFFFFF; transition: background-color 0.15s ease; } body.theme-light .hover-controls button { background: rgba(0,0,0,0.08); color: #242424; } .hover-controls button:hover:not(:disabled) { background: rgba(91, 95, 199, 0.85); color: #FFFFFF; } .hover-controls button:disabled { opacity: 0.35; cursor: default; } .hover-controls button.active { background: #5B5FC7; color: #FFFFFF; } .hover-controls button.live { background: #C4314B; color: #FFFFFF; } .sent-group { display: inline-flex; align-items: center; gap: 2px; background: rgba(255,255,255,0.08); border-radius: 6px; padding: 1px 3px; } body.theme-light .sent-group { background: rgba(0,0,0,0.05); } .sent-lbl { font-size: 11px; font-weight: 700; padding: 0 4px; color: #FFFFFF; } body.theme-light .sent-lbl { color: #242424; } .stream { flex: 1; overflow-y: auto; padding: 28px 36px; display: flex; flex-direction: column; text-align: center; scrollbar-width: none; } .stream::-webkit-scrollbar { display: none; } .center-stage { margin: auto 0; width: 100%; display: flex; flex-direction: column; gap: 14px; } .text-block { display: flex; flex-direction: column; gap: 4px; align-items: center; } .caption-line { font-weight: 500; line-height: 1.42; word-break: break-word; max-width: 92vw; } .orig-line { opacity: 0.65; line-height: 1.38; word-break: break-word; max-width: 88vw; } .interim-line { opacity: 0.75; font-weight: 500; line-height: 1.42; word-break: break-word; max-width: 92vw; } .empty { margin: auto; text-align: center; font-size: 22px; font-weight: 400; opacity: 0.92; user-select: none; }</style></head><body class="theme-dark"><button id="toCloseBtn" type="button" class="close-corner" title="關閉視窗">✕</button><div class="hover-controls"><button id="toMicBtn" type="button" title="開始 / 停止說話">🎤</button><div class="sent-group"><button id="toSentDecBtn" type="button" title="減少句數（最少 3 句）">-</button><span id="toSentLbl" class="sent-lbl">3句</span><button id="toSentIncBtn" type="button" title="增加句數（最多 6 句）">+</button></div><button id="toOrigBtn" type="button" title="顯示 / 隱藏原文">原文</button><button id="toThemeBtn" type="button" title="切換深色 / 純黑 / 淺色背景">深色</button><button id="toFontDecBtn" type="button" title="縮小字體">A-</button><button id="toFontIncBtn" type="button" title="放大字體">A+</button><button id="toFsBtn" type="button" title="切換全螢幕">⛶ 全螢幕</button></div><div id="toStream" class="stream"><div id="toEmpty" class="empty">Waiting for translation...</div><div id="toStage" class="center-stage"><div id="toList" style="display:flex; flex-direction:column; gap:14px;"></div><div id="toInterim" style="display:none; flex-direction:column; gap:4px; align-items:center;"></div></div></div></body></html>`;
+      }
+
+      function cycleTextOnlyTheme() {
+        const order = ["dark", "black", "light"];
+        const idx = order.indexOf(state.textOnlyTheme);
+        state.textOnlyTheme = order[(idx + 1) % order.length];
+        syncPopupView();
+      }
+
+      async function toggleExternalTextOnlyFullscreen(popupWin) {
+        if (!popupWin || popupWin.closed) return;
+        const doc = popupWin.document;
+        try {
+          if (!doc.fullscreenElement && doc.documentElement.requestFullscreen) {
+            await doc.documentElement.requestFullscreen();
+            state.textOnlyFullscreen = true;
+            updatePopupButtonVisualState();
+            syncPopupView();
+            return;
+          } else if (doc.fullscreenElement && doc.exitFullscreen) {
+            await doc.exitFullscreen();
+            state.textOnlyFullscreen = false;
+            updatePopupButtonVisualState();
+            syncPopupView();
+            return;
+          }
+        } catch (_) {
+          try {
+            popupWin.moveTo(0, 0);
+            popupWin.resizeTo(window.screen.availWidth, window.screen.availHeight);
+            state.textOnlyFullscreen = !state.textOnlyFullscreen;
+            updatePopupButtonVisualState();
+            syncPopupView();
+            return;
+          } catch (__) {
+            openTextOnlyFullscreenStage();
+          }
+        }
+      }
+
+      function wireExternalPopupEvents(popupWin, variant) {
+        const popupDoc = popupWin.document;
+        if (variant === "text-only") {
+          const closeBtn = popupDoc.getElementById("toCloseBtn");
+          const micBtn = popupDoc.getElementById("toMicBtn");
+          const sentDecBtn = popupDoc.getElementById("toSentDecBtn");
+          const sentIncBtn = popupDoc.getElementById("toSentIncBtn");
+          const origBtn = popupDoc.getElementById("toOrigBtn");
+          const themeBtn = popupDoc.getElementById("toThemeBtn");
+          const decBtn = popupDoc.getElementById("toFontDecBtn");
+          const incBtn = popupDoc.getElementById("toFontIncBtn");
+          const fsBtn = popupDoc.getElementById("toFsBtn");
+          const streamEl = popupDoc.getElementById("toStream");
+
+          if (closeBtn) closeBtn.addEventListener("click", () => closePopupMode());
+          if (micBtn) micBtn.addEventListener("click", () => toggleMicrophone());
+          if (sentDecBtn) sentDecBtn.addEventListener("click", () => adjustTextOnlySentenceLimit(-1));
+          if (sentIncBtn) sentIncBtn.addEventListener("click", () => adjustTextOnlySentenceLimit(1));
+          if (origBtn) origBtn.addEventListener("click", () => { state.textOnlyShowOriginal = !state.textOnlyShowOriginal; syncPopupView(); });
+          if (themeBtn) themeBtn.addEventListener("click", () => cycleTextOnlyTheme());
+          if (decBtn) decBtn.addEventListener("click", () => { state.textOnlyFontSize = Math.max(16, state.textOnlyFontSize - 2); syncPopupView(); });
+          if (incBtn) incBtn.addEventListener("click", () => { state.textOnlyFontSize = Math.min(56, state.textOnlyFontSize + 2); syncPopupView(); });
+          if (fsBtn) fsBtn.addEventListener("click", () => toggleExternalTextOnlyFullscreen(popupWin));
+          if (streamEl) streamEl.addEventListener("dblclick", () => toggleExternalTextOnlyFullscreen(popupWin));
+
+          popupDoc.addEventListener("fullscreenchange", () => {
+            state.textOnlyFullscreen = Boolean(popupDoc.fullscreenElement);
+            updatePopupButtonVisualState();
+            syncPopupView();
+          });
+          return;
+        }
         const micBtn = popupDoc.getElementById("extMicBtn");
         const themeBtn = popupDoc.getElementById("extThemeBtn");
         const decBtn = popupDoc.getElementById("extFontDecBtn");
@@ -1944,48 +2258,197 @@
         if (incBtn) incBtn.addEventListener("click", () => { state.popupFontSize = Math.min(30, state.popupFontSize + 2); syncPopupView(); });
       }
 
+      async function setOverlayFullscreen(enable) {
+        state.textOnlyFullscreen = Boolean(enable);
+        els.floatingOverlayCard.classList.toggle("overlay-fullscreen", state.textOnlyFullscreen);
+        if (state.textOnlyFullscreen) {
+          try {
+            if (!document.fullscreenElement && document.documentElement.requestFullscreen) {
+              await document.documentElement.requestFullscreen();
+            }
+          } catch (_) {}
+        } else {
+          try {
+            if (document.fullscreenElement && document.exitFullscreen) {
+              await document.exitFullscreen();
+            }
+          } catch (_) {}
+        }
+        updatePopupButtonVisualState();
+        syncPopupView();
+      }
+
       function closePopupMode() {
-        if ((state.popupMode === "pip" || state.popupMode === "window") && state.popupWindowRef) { try { if (!state.popupWindowRef.closed) state.popupWindowRef.close(); } catch (_) {} }
+        if ((state.popupMode === "pip" || state.popupMode === "window") && state.popupWindowRef) {
+          try { if (!state.popupWindowRef.closed) state.popupWindowRef.close(); } catch (_) {}
+        }
+        if (document.fullscreenElement && document.exitFullscreen) {
+          try { document.exitFullscreen(); } catch (_) {}
+        }
         state.popupWindowRef = null;
         state.popupMode = "none";
+        state.textOnlyFullscreen = false;
         els.floatingOverlayCard.classList.add("hidden");
-        els.floatingOverlayCard.classList.remove("flex");
+        els.floatingOverlayCard.classList.remove("flex", "text-only-mode", "overlay-fullscreen", "text-only-dark", "text-only-light");
+        els.overlayStageCloseBtn.classList.add("hidden");
         updatePopupButtonVisualState();
       }
 
-      async function openPopupMode() {
-        if (state.popupMode !== "none") { closePopupMode(); showToast("已關閉 Pop-up 懸浮視窗"); return; }
+      async function openTextOnlyFullscreenStage() {
+        togglePopupPopover(false);
+        if (state.popupMode !== "none") {
+          closePopupMode();
+        }
+        state.popupVariant = "text-only";
+        state.popupMode = "overlay";
+        state.popupWindowRef = null;
+
+        els.floatingOverlayCard.classList.remove("hidden");
+        els.floatingOverlayCard.classList.add("flex", "text-only-mode");
+        await setOverlayFullscreen(true);
+        showToast(`已開啟 Text-only 全螢幕顯示（目前顯示最新 ${state.textOnlyMaxSentences} 句）`);
+      }
+
+      async function openPopupMode(variant = "standard") {
+        togglePopupPopover(false);
+        if (state.popupMode !== "none") {
+          if (state.popupVariant === variant && !state.textOnlyFullscreen) {
+            closePopupMode();
+            showToast(variant === "text-only" ? "已關閉 Text-only popup" : "已關閉 Pop-up 懸浮視窗");
+            return;
+          }
+          closePopupMode();
+        }
+
+        state.popupVariant = variant;
+        state.textOnlyFullscreen = false;
+        const isTextOnly = variant === "text-only";
+        const htmlContent = isTextOnly ? buildTextOnlyPopupHTML() : buildExternalPopupHTML();
+        const winWidth = isTextOnly ? 640 : 480;
+        const winHeight = isTextOnly ? 260 : 300;
+
         if ("documentPictureInPicture" in window) {
           try {
-            const pipWin = await window.documentPictureInPicture.requestWindow({ width: 480, height: 300 });
-            pipWin.document.open(); pipWin.document.write(buildExternalPopupHTML()); pipWin.document.close();
-            state.popupMode = "pip"; state.popupWindowRef = pipWin; wireExternalPopupEvents(pipWin.document); updatePopupButtonVisualState(); syncPopupView();
-            pipWin.addEventListener("pagehide", () => { state.popupWindowRef = null; state.popupMode = "none"; updatePopupButtonVisualState(); });
-            showToast("已開啟置頂 Pop-up 懸浮翻譯視窗"); return;
+            const pipWin = await window.documentPictureInPicture.requestWindow({ width: winWidth, height: winHeight });
+            pipWin.document.open(); pipWin.document.write(htmlContent); pipWin.document.close();
+            state.popupMode = "pip"; state.popupWindowRef = pipWin;
+            wireExternalPopupEvents(pipWin, variant);
+            updatePopupButtonVisualState(); syncPopupView();
+            pipWin.addEventListener("pagehide", () => { state.popupWindowRef = null; state.popupMode = "none"; state.textOnlyFullscreen = false; updatePopupButtonVisualState(); });
+            showToast(isTextOnly ? `已開啟 Text-only popup（顯示 ${state.textOnlyMaxSentences} 句，雙擊可切換全螢幕）` : "已開啟置頂 Pop-up 懸浮翻譯視窗");
+            return;
           } catch (_) {}
         }
+
         try {
-          const popupWin = window.open("", "LiveTranslatePopup", "popup=yes,width=500,height=320,resizable=yes,scrollbars=yes");
+          const winName = isTextOnly ? "LiveTranslateTextOnlyPopup" : "LiveTranslatePopup";
+          const popupWin = window.open("", winName, `popup=yes,width=${winWidth},height=${winHeight},resizable=yes,scrollbars=yes`);
           if (popupWin && !popupWin.closed) {
-            popupWin.document.open(); popupWin.document.write(buildExternalPopupHTML()); popupWin.document.close();
-            state.popupMode = "window"; state.popupWindowRef = popupWin; wireExternalPopupEvents(popupWin.document); updatePopupButtonVisualState(); syncPopupView();
-            popupWin.addEventListener("beforeunload", () => { state.popupWindowRef = null; state.popupMode = "none"; updatePopupButtonVisualState(); });
-            showToast("已開啟獨立 Pop-up 翻譯視窗"); return;
+            popupWin.document.open(); popupWin.document.write(htmlContent); popupWin.document.close();
+            state.popupMode = "window"; state.popupWindowRef = popupWin;
+            wireExternalPopupEvents(popupWin, variant);
+            updatePopupButtonVisualState(); syncPopupView();
+            popupWin.addEventListener("beforeunload", () => { state.popupWindowRef = null; state.popupMode = "none"; state.textOnlyFullscreen = false; updatePopupButtonVisualState(); });
+            showToast(isTextOnly ? `已開啟 Text-only popup（顯示 ${state.textOnlyMaxSentences} 句，雙擊可切換全螢幕）` : "已開啟獨立 Pop-up 翻譯視窗");
+            return;
           }
         } catch (_) {}
-        state.popupMode = "overlay"; state.popupWindowRef = null; els.floatingOverlayCard.classList.remove("hidden"); els.floatingOverlayCard.classList.add("flex"); updatePopupButtonVisualState(); syncPopupView(); showToast("已開啟內建可拖曳懸浮翻譯視窗");
+
+        state.popupMode = "overlay";
+        state.popupWindowRef = null;
+        els.floatingOverlayCard.classList.remove("hidden", "overlay-fullscreen");
+        els.floatingOverlayCard.classList.add("flex");
+        els.floatingOverlayCard.classList.toggle("text-only-mode", isTextOnly);
+        updatePopupButtonVisualState();
+        syncPopupView();
+        showToast(isTextOnly ? `已開啟內建 Text-only 懸浮字幕（顯示 ${state.textOnlyMaxSentences} 句）` : "已開啟內建可拖曳懸浮翻譯視窗");
       }
 
       function syncPopupView() {
         if (state.popupMode === "none") return;
+        const isTextOnly = state.popupVariant === "text-only";
         const pairText = getPairLabel(state.spokenLang, state.targetLang);
-        const recentEntries = state.entries.slice(-12);
         const interimStr = state.interimBuffer.trim();
         const liveTransEntries = Object.entries(state.liveInterimTranslations);
+        const themeLabelMap = { dark: "深色", black: "純黑", light: "淺色" };
+
+        const { maxCount, recentEntries } = isTextOnly
+          ? getTextOnlyVisibleSlices(interimStr)
+          : { maxCount: 12, recentEntries: state.entries.slice(-12) };
+
+        // 1. External PiP or Browser Popup Window
         if ((state.popupMode === "pip" || state.popupMode === "window") && state.popupWindowRef) {
-          if (state.popupWindowRef.closed) { state.popupWindowRef = null; state.popupMode = "none"; updatePopupButtonVisualState(); return; }
+          if (state.popupWindowRef.closed) { state.popupWindowRef = null; state.popupMode = "none"; state.textOnlyFullscreen = false; updatePopupButtonVisualState(); return; }
           const doc = state.popupWindowRef.document;
           if (!doc || !doc.body) return;
+
+          if (isTextOnly) {
+            doc.body.className = `theme-${state.textOnlyTheme}`;
+            const micBtn = doc.getElementById("toMicBtn");
+            const sentDecBtn = doc.getElementById("toSentDecBtn");
+            const sentLbl = doc.getElementById("toSentLbl");
+            const sentIncBtn = doc.getElementById("toSentIncBtn");
+            const origBtn = doc.getElementById("toOrigBtn");
+            const themeBtn = doc.getElementById("toThemeBtn");
+            const fsBtn = doc.getElementById("toFsBtn");
+            const emptyEl = doc.getElementById("toEmpty");
+            const stageEl = doc.getElementById("toStage");
+            const listEl = doc.getElementById("toList");
+            const interimEl = doc.getElementById("toInterim");
+            const streamEl = doc.getElementById("toStream");
+
+            if (micBtn) micBtn.className = state.isRecording ? "live" : "";
+            if (sentLbl) sentLbl.textContent = `${maxCount}句`;
+            if (sentDecBtn) sentDecBtn.disabled = maxCount <= TEXT_ONLY_MIN_SENTENCES;
+            if (sentIncBtn) sentIncBtn.disabled = maxCount >= TEXT_ONLY_MAX_SENTENCES;
+            if (origBtn) origBtn.className = state.textOnlyShowOriginal ? "active" : "";
+            if (themeBtn) themeBtn.textContent = themeLabelMap[state.textOnlyTheme] || "深色";
+            if (fsBtn) {
+              fsBtn.textContent = state.textOnlyFullscreen ? "退出全螢幕" : "⛶ 全螢幕";
+              fsBtn.className = state.textOnlyFullscreen ? "active" : "";
+            }
+
+            const hasContent = recentEntries.length > 0 || Boolean(interimStr);
+            if (emptyEl) emptyEl.style.display = hasContent ? "none" : "block";
+            if (stageEl) stageEl.style.display = hasContent ? "flex" : "none";
+
+            if (listEl) {
+              listEl.innerHTML = recentEntries.map((entry) => {
+                const lines = Object.values(entry.translations)
+                  .map((txt) => `<div class="caption-line" style="font-size:${state.textOnlyFontSize}px;">${escapeHtml(txt)}</div>`)
+                  .join("");
+                const orig = state.textOnlyShowOriginal
+                  ? `<div class="orig-line" style="font-size:${Math.max(13, Math.round(state.textOnlyFontSize * 0.65))}px;">${escapeHtml(entry.original)}</div>`
+                  : "";
+                return `<div class="text-block">${lines}${orig}</div>`;
+              }).join("");
+            }
+
+            if (interimEl) {
+              if (interimStr) {
+                interimEl.style.display = "flex";
+                if (liveTransEntries.length > 0) {
+                  const transLines = liveTransEntries
+                    .map(([, txt]) => `<div class="interim-line" style="font-size:${state.textOnlyFontSize}px;">${escapeHtml(txt)}</div>`)
+                    .join("");
+                  const orig = state.textOnlyShowOriginal
+                    ? `<div class="orig-line" style="font-size:${Math.max(13, Math.round(state.textOnlyFontSize * 0.65))}px;">${escapeHtml(interimStr)}</div>`
+                    : "";
+                  interimEl.innerHTML = transLines + orig;
+                } else {
+                  interimEl.innerHTML = `<div class="interim-line" style="font-size:${state.textOnlyFontSize}px;">${escapeHtml(interimStr)}</div>`;
+                }
+              } else {
+                interimEl.style.display = "none";
+                interimEl.innerHTML = "";
+              }
+            }
+
+            if (streamEl) streamEl.scrollTop = streamEl.scrollHeight;
+            return;
+          }
+
+          // Standard External Popup
           doc.body.className = state.popupDarkTheme ? "theme-dark" : "theme-light";
           const pairEl = doc.getElementById("extPairBadge");
           const micBtn = doc.getElementById("extMicBtn");
@@ -2017,13 +2480,111 @@
           if (streamEl) streamEl.scrollTop = streamEl.scrollHeight;
           return;
         }
+
+        // 2. Built-in Fallback / Fullscreen Stage Overlay
         if (state.popupMode === "overlay") {
-          els.overlayPairBadge.textContent = pairText;
+          els.floatingOverlayCard.classList.toggle("text-only-mode", isTextOnly);
+          els.floatingOverlayCard.classList.toggle("overlay-fullscreen", isTextOnly && state.textOnlyFullscreen);
+          els.overlayStageCloseBtn.classList.toggle("hidden", !isTextOnly);
+          els.overlaySentLimitGroup.classList.toggle("hidden", !isTextOnly);
+          els.overlayOrigToggleBtn.classList.toggle("hidden", !isTextOnly);
+          els.overlayFullscreenBtn.classList.toggle("hidden", !isTextOnly);
+          els.overlayCloseBtn.classList.toggle("hidden", isTextOnly);
+
+          els.overlayPairBadge.textContent = isTextOnly ? `Text-only · ${maxCount}句` : pairText;
           els.overlayMicLabel.textContent = state.isRecording ? "停止說話" : "開始說話";
           els.overlayMicBtn.className = state.isRecording ? "inline-flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-semibold bg-teams-danger text-white transition" : "inline-flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-semibold bg-teams-primary hover:bg-teams-primaryHover text-white transition";
+
+          if (isTextOnly) {
+            els.overlaySentCountLabel.textContent = `${maxCount}句`;
+            els.overlaySentDecBtn.disabled = maxCount <= TEXT_ONLY_MIN_SENTENCES;
+            els.overlaySentIncBtn.disabled = maxCount >= TEXT_ONLY_MAX_SENTENCES;
+
+            els.overlayOrigToggleBtn.className = state.textOnlyShowOriginal
+              ? "px-1.5 py-1 rounded-md text-[11px] font-semibold bg-teams-primary text-white transition"
+              : "px-1.5 py-1 rounded-md text-[11px] font-semibold bg-white/15 hover:bg-white/25 transition";
+            els.overlayThemeBtn.textContent = themeLabelMap[state.textOnlyTheme] || "深色";
+            els.overlayFullscreenBtn.textContent = state.textOnlyFullscreen ? "退出全螢幕" : "⛶ 全螢幕";
+            els.overlayFullscreenBtn.className = state.textOnlyFullscreen
+              ? "px-1.5 py-1 rounded-md text-[11px] font-semibold bg-teams-primary text-white transition"
+              : "px-1.5 py-1 rounded-md text-[11px] font-semibold bg-white/15 hover:bg-white/25 transition";
+
+            els.floatingOverlayCard.classList.remove("bg-[#19231E]", "bg-[#1B1B1F]", "bg-black", "bg-white", "text-white", "text-teams-text", "border-[#3B3B45]", "border-teams-border", "text-only-dark", "text-only-light");
+            if (state.textOnlyTheme === "light") {
+              els.floatingOverlayCard.classList.add("bg-white", "text-teams-text", "border-teams-border", "text-only-light");
+              els.overlayDragHandle.classList.remove("bg-[#26262C]", "border-white/10");
+              els.overlayDragHandle.classList.add("bg-[#F5F5F5]/95", "border-teams-border");
+              els.overlayStageCloseBtn.className = "fixed top-3 right-3 z-20 w-8 h-8 rounded-lg border border-[#A08228]/55 bg-black/5 hover:bg-black/15 text-teams-text flex items-center justify-center text-sm transition";
+            } else if (state.textOnlyTheme === "black") {
+              els.floatingOverlayCard.classList.add("bg-black", "text-white", "border-[#3B3B45]", "text-only-dark");
+              els.overlayDragHandle.classList.remove("bg-[#F5F5F5]/95", "border-teams-border");
+              els.overlayDragHandle.classList.add("bg-[#26262C]", "border-white/10");
+              els.overlayStageCloseBtn.className = "fixed top-3 right-3 z-20 w-8 h-8 rounded-lg border border-[#D4AF37]/65 bg-black/30 hover:bg-black/60 text-white/85 hover:text-white flex items-center justify-center text-sm transition";
+            } else {
+              els.floatingOverlayCard.classList.add("bg-[#19231E]", "text-white", "border-[#3B3B45]", "text-only-dark");
+              els.overlayDragHandle.classList.remove("bg-[#F5F5F5]/95", "border-teams-border");
+              els.overlayDragHandle.classList.add("bg-[#26262C]", "border-white/10");
+              els.overlayStageCloseBtn.className = "fixed top-3 right-3 z-20 w-8 h-8 rounded-lg border border-[#D4AF37]/65 bg-black/25 hover:bg-black/55 text-white/85 hover:text-white flex items-center justify-center text-sm transition";
+            }
+
+            const hasContent = recentEntries.length > 0 || Boolean(interimStr);
+            els.overlayEmptyHint.textContent = "Waiting for translation...";
+            els.overlayEmptyHint.style.fontSize = state.textOnlyFullscreen ? "24px" : "16px";
+            els.overlayEmptyHint.classList.toggle("hidden", hasContent);
+            els.overlayCenterStageWrapper.classList.toggle("hidden", !hasContent);
+
+            const stageFontSize = state.textOnlyFullscreen ? Math.max(state.textOnlyFontSize, 32) : state.textOnlyFontSize;
+
+            els.overlaySentencesList.innerHTML = recentEntries.map((entry) => {
+              const rows = Object.values(entry.translations)
+                .map((txt) => `<p class="font-medium leading-[1.42] break-words mx-auto max-w-[92vw]" style="font-size:${stageFontSize}px;">${escapeHtml(txt)}</p>`)
+                .join("");
+              const orig = state.textOnlyShowOriginal
+                ? `<p class="opacity-65 leading-[1.38] break-words mx-auto max-w-[88vw]" style="font-size:${Math.max(13, Math.round(stageFontSize * 0.65))}px;">${escapeHtml(entry.original)}</p>`
+                : "";
+              return `<div class="space-y-1">${rows}${orig}</div>`;
+            }).join("");
+
+            els.overlayInterimBox.className = "space-y-1";
+            els.overlayInterimOrigRow.classList.add("hidden");
+            if (interimStr) {
+              els.overlayInterimBox.classList.remove("hidden");
+              if (liveTransEntries.length > 0) {
+                const transHtml = liveTransEntries
+                  .map(([, txt]) => `<p class="opacity-75 font-medium leading-[1.42] break-words mx-auto max-w-[92vw]" style="font-size:${stageFontSize}px;">${escapeHtml(txt)}</p>`)
+                  .join("");
+                const origHtml = state.textOnlyShowOriginal
+                  ? `<p class="opacity-60 leading-[1.38] break-words mx-auto max-w-[88vw]" style="font-size:${Math.max(13, Math.round(stageFontSize * 0.65))}px;">${escapeHtml(interimStr)}</p>`
+                  : "";
+                els.overlayInterimTrans.innerHTML = transHtml + origHtml;
+              } else {
+                els.overlayInterimTrans.innerHTML = `<p class="opacity-75 font-medium leading-[1.42] break-words mx-auto max-w-[92vw]" style="font-size:${stageFontSize}px;">${escapeHtml(interimStr)}</p>`;
+              }
+            } else {
+              els.overlayInterimBox.classList.add("hidden");
+              els.overlayInterimTrans.innerHTML = "";
+            }
+            els.overlayFeedBody.scrollTop = els.overlayFeedBody.scrollHeight;
+            return;
+          }
+
+          // Standard Built-in Overlay
+          els.overlayCenterStageWrapper.classList.remove("hidden");
           els.overlayThemeBtn.textContent = state.popupDarkTheme ? "☀️" : "🌙";
-          if (state.popupDarkTheme) { els.floatingOverlayCard.classList.remove("bg-white", "text-teams-text", "border-teams-border"); els.floatingOverlayCard.classList.add("bg-[#1B1B1F]", "text-white", "border-[#3B3B45]"); els.overlayDragHandle.classList.remove("bg-[#F5F5F5]", "border-teams-border"); els.overlayDragHandle.classList.add("bg-[#26262C]", "border-white/10"); }
-          else { els.floatingOverlayCard.classList.remove("bg-[#1B1B1F]", "text-white", "border-[#3B3B45]"); els.floatingOverlayCard.classList.add("bg-white", "text-teams-text", "border-teams-border"); els.overlayDragHandle.classList.remove("bg-[#26262C]", "border-white/10"); els.overlayDragHandle.classList.add("bg-[#F5F5F5]", "border-teams-border"); }
+          els.floatingOverlayCard.classList.remove("bg-black", "bg-[#19231E]");
+          if (state.popupDarkTheme) {
+            els.floatingOverlayCard.classList.remove("bg-white", "text-teams-text", "border-teams-border");
+            els.floatingOverlayCard.classList.add("bg-[#1B1B1F]", "text-white", "border-[#3B3B45]");
+            els.overlayDragHandle.classList.remove("bg-[#F5F5F5]", "bg-[#F5F5F5]/95", "border-teams-border");
+            els.overlayDragHandle.classList.add("bg-[#26262C]", "border-white/10");
+          } else {
+            els.floatingOverlayCard.classList.remove("bg-[#1B1B1F]", "text-white", "border-[#3B3B45]");
+            els.floatingOverlayCard.classList.add("bg-white", "text-teams-text", "border-teams-border");
+            els.overlayDragHandle.classList.remove("bg-[#26262C]", "border-white/10");
+            els.overlayDragHandle.classList.add("bg-[#F5F5F5]", "border-teams-border");
+          }
+          els.overlayEmptyHint.textContent = "點擊「開始說話」，即時翻譯句子將會同步顯示於此懸浮視窗";
+          els.overlayEmptyHint.style.fontSize = "12px";
           els.overlayEmptyHint.classList.toggle("hidden", recentEntries.length > 0 || Boolean(interimStr));
           const originalColorClass = state.popupDarkTheme ? "text-[#B4B4BE]" : "text-teams-muted";
           const borderDividerClass = state.popupDarkTheme ? "border-white/10" : "border-teams-subtle";
@@ -2032,6 +2593,9 @@
             const rows = Object.entries(entry.translations).map(([code, txt]) => `<div class="flex items-baseline gap-1.5"><span class="px-1.5 py-0.5 rounded text-[10px] font-bold ${badgeClass} shrink-0">${escapeHtml(TARGET_LANGUAGES[code]?.badgeName || code)}</span><p class="font-medium leading-[1.46] break-words" style="font-size:${state.popupFontSize}px;">${escapeHtml(txt)}</p></div>`).join("");
             return `<div class="pb-2 border-b ${borderDividerClass} last:border-b-0 last:pb-0 space-y-1">${rows}${state.showBoth ? `<p class="text-[13px] ${originalColorClass} leading-[1.42] break-words">${escapeHtml(entry.original)}</p>` : ""}</div>`;
           }).join("");
+
+          els.overlayInterimBox.className = "rounded-lg px-2.5 py-1.5 bg-teams-primary/20 border border-teams-primary/40 text-xs space-y-1";
+          els.overlayInterimOrigRow.classList.remove("hidden");
           if (interimStr) {
             els.overlayInterimBox.classList.remove("hidden"); els.overlayInterimText.textContent = interimStr;
             els.overlayInterimTrans.innerHTML = liveTransEntries.map(([code, txt]) => `<div class="flex items-baseline gap-1.5"><span class="px-1.5 py-0.5 rounded text-[10px] font-bold ${badgeClass} shrink-0">${escapeHtml(TARGET_LANGUAGES[code]?.badgeName || code)}</span><span style="font-size:${Math.max(14, state.popupFontSize - 1)}px;">${escapeHtml(txt)}</span></div>`).join("");
@@ -2043,12 +2607,12 @@
       function initOverlayDrag() {
         let dragging = false, startX = 0, startY = 0, origLeft = 0, origTop = 0;
         function startDrag(clientX, clientY, target) {
-          if (target.closest("button")) return;
+          if (target.closest("button") || state.textOnlyFullscreen) return;
           dragging = true; const rect = els.floatingOverlayCard.getBoundingClientRect(); startX = clientX; startY = clientY; origLeft = rect.left; origTop = rect.top;
           els.floatingOverlayCard.style.right = "auto"; els.floatingOverlayCard.style.bottom = "auto"; els.floatingOverlayCard.style.left = `${origLeft}px`; els.floatingOverlayCard.style.top = `${origTop}px`;
         }
         function moveDrag(clientX, clientY) {
-          if (!dragging) return;
+          if (!dragging || state.textOnlyFullscreen) return;
           const maxLeft = Math.max(0, window.innerWidth - els.floatingOverlayCard.offsetWidth), maxTop = Math.max(0, window.innerHeight - els.floatingOverlayCard.offsetHeight);
           els.floatingOverlayCard.style.left = `${Math.min(Math.max(0, origLeft + clientX - startX), maxLeft)}px`; els.floatingOverlayCard.style.top = `${Math.min(Math.max(0, origTop + clientY - startY), maxTop)}px`;
         }
@@ -2093,7 +2657,7 @@
           els.teamsMicBtn.className = "inline-flex items-center justify-center gap-2.5 px-5 py-3 rounded-xl text-sm font-semibold text-white bg-teams-danger hover:opacity-95 active:scale-[0.99] shadow-sm transition shrink-0 recording";
           els.dockMicIcon.classList.add("hidden"); els.dockWaveBars.classList.remove("hidden"); els.dockWaveBars.classList.add("inline-flex"); els.dockMicLabel.textContent = "停止說話";
           els.liveStatusPill.className = "inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-[#FDF2F4] text-teams-danger border border-[#F3C6CE] transition-colors";
-          els.liveStatusDot.className = "w-2 h-2 rounded-full bg-teams-danger animate-pulse"; els.liveStatusLabel.textContent = `正在聆聽：${spokenCfg.engineLabel}`;
+          els.liveStatusDot.className = "w-2 h-2 rounded-full bg-teams-danger animate-pulse"; els.liveStatusLabel.textContent = `持續聆聽中：${spokenCfg.engineLabel}`;
         } else {
           els.teamsMicBtn.className = "inline-flex items-center justify-center gap-2.5 px-5 py-3 rounded-xl text-sm font-semibold text-white bg-teams-primary hover:bg-teams-primaryHover active:scale-[0.99] shadow-sm transition shrink-0";
           els.dockMicIcon.classList.remove("hidden"); els.dockWaveBars.classList.add("hidden"); els.dockWaveBars.classList.remove("inline-flex"); els.dockMicLabel.textContent = "開始說話";
@@ -2104,29 +2668,59 @@
       }
 
       function teardownRecognition() {
-        state.recognitionSessionId += 1; clearTimeout(state.silenceCommitTimer); clearTimeout(state.interimDebounceTimer); clearTimeout(state.restartTimer);
-        if (state.recognition) { const oldRec = state.recognition; state.recognition = null; try { oldRec.onstart = null; oldRec.onresult = null; oldRec.onerror = null; oldRec.onend = null; oldRec.abort(); } catch (_) {} }
+        state.recognitionSessionId += 1;
+        clearTimeout(state.silenceCommitTimer);
+        clearTimeout(state.interimDebounceTimer);
+        clearTimeout(state.restartTimer);
+        if (state.recognition) {
+          const oldRec = state.recognition;
+          state.recognition = null;
+          try {
+            oldRec.onstart = null;
+            oldRec.onresult = null;
+            oldRec.onerror = null;
+            oldRec.onend = null;
+            oldRec.abort();
+          } catch (_) {}
+        }
       }
 
-      function createAndStartRecognition() {
+      function createAndStartRecognition(isAutoRestart = false) {
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         if (!SpeechRecognition) {
-          state.speechSupported = false; state.isRecording = false; updateRecordingVisualState(false);
-          els.micFallbackText.textContent = "此瀏覽器暫不支援語音識別，請使用 Chrome / Edge 或直接使用下方輸入框與「試講一句」。"; els.micFallbackBanner.classList.remove("hidden"); return;
+          state.speechSupported = false;
+          state.isRecording = false;
+          updateRecordingVisualState(false);
+          els.micFallbackText.textContent = "此瀏覽器暫不支援語音識別，請使用 Chrome / Edge 或直接使用下方輸入框與「試講一句」。";
+          els.micFallbackBanner.classList.remove("hidden");
+          return;
         }
-        state.speechSupported = true; teardownRecognition();
-        const sessionId = ++state.recognitionSessionId, activeLang = state.spokenLang, recognition = new SpeechRecognition();
+        state.speechSupported = true;
+        teardownRecognition();
+
+        const sessionId = ++state.recognitionSessionId;
+        const activeLang = state.spokenLang;
+        const recognition = new SpeechRecognition();
         const committedSegmentIndices = new Set();
 
         if (activeLang !== "auto") {
           recognition.lang = activeLang;
         }
-        recognition.continuous = true; recognition.interimResults = true; recognition.maxAlternatives = 1;
+        recognition.continuous = true;
+        recognition.interimResults = true;
+        recognition.maxAlternatives = 1;
 
-        recognition.onstart = () => { if (sessionId === state.recognitionSessionId) updateRecordingVisualState(true); };
+        recognition.onstart = () => {
+          if (sessionId !== state.recognitionSessionId) return;
+          state.restartBackoffMs = 150;
+          if (state.isRecording) {
+            updateRecordingVisualState(true);
+          }
+        };
 
         recognition.onresult = (event) => {
           if (sessionId !== state.recognitionSessionId) return;
+          state.restartBackoffMs = 150;
           let finalizedChunk = "", interimChunk = "";
           const activeInterimIndices = [];
 
@@ -2148,7 +2742,10 @@
           }
 
           if (interimChunk.trim()) {
-            const liveText = interimChunk.trim(); state.interimBuffer = liveText; renderInterimLiveBubble(); scheduleInterimLiveTranslation(liveText);
+            const liveText = interimChunk.trim();
+            state.interimBuffer = liveText;
+            renderInterimLiveBubble();
+            scheduleInterimLiveTranslation(liveText);
             clearTimeout(state.silenceCommitTimer);
             state.silenceCommitTimer = setTimeout(() => {
               if (sessionId !== state.recognitionSessionId) return;
@@ -2164,11 +2761,21 @@
         recognition.onerror = (event) => {
           if (sessionId !== state.recognitionSessionId) return;
           if (event.error === "no-speech" || event.error === "aborted") return;
-          if (event.error === "network") { els.micFallbackText.textContent = "語音辨識網絡連線暫時不穩，請檢查網絡後再試。"; els.micFallbackBanner.classList.remove("hidden"); return; }
+          if (event.error === "network") {
+            state.restartBackoffMs = Math.min(2000, state.restartBackoffMs * 2);
+            els.liveStatusLabel.textContent = "網絡不穩，自動重連中...";
+            return;
+          }
           if (event.error === "language-not-supported" || event.error === "not-allowed" || event.error === "service-not-allowed") {
-            state.isRecording = false; teardownRecognition(); clearInterimState(); updateRecordingVisualState(false);
-            els.micFallbackText.textContent = event.error === "language-not-supported" ? `目前瀏覽器不支援 ${SPOKEN_LANGUAGES[activeLang].engineLabel} 語音識別，請改用 Chrome / Edge 或點擊「試講一句」。` : "麥克風權限被拒絕或無法存取，請允許麥克風權限或直接使用下方輸入框與「試講一句」。";
-            els.micFallbackBanner.classList.remove("hidden"); if (event.error !== "language-not-supported") showToast("麥克風權限被拒絕，無法開始錄音");
+            state.isRecording = false;
+            teardownRecognition();
+            clearInterimState();
+            updateRecordingVisualState(false);
+            els.micFallbackText.textContent = event.error === "language-not-supported"
+              ? `目前瀏覽器不支援 ${SPOKEN_LANGUAGES[activeLang].engineLabel} 語音識別，請改用 Chrome / Edge 或點擊「試講一句」。`
+              : "麥克風權限被拒絕或無法存取，請允許麥克風權限或直接使用下方輸入框與「試講一句」。";
+            els.micFallbackBanner.classList.remove("hidden");
+            if (event.error !== "language-not-supported") showToast("麥克風權限被拒絕，無法開始錄音");
           }
         };
 
@@ -2176,27 +2783,65 @@
           if (sessionId !== state.recognitionSessionId) return;
           const leftover = state.interimBuffer.trim();
           if (leftover) commitRecognizedSentence(leftover);
-          const wasRecording = state.isRecording;
-          state.isRecording = false;
           state.recognition = null;
           clearInterimState();
-          updateRecordingVisualState(false);
-          if (wasRecording) {
-            showToast("語音聆聽已停止，如需繼續請按「開始說話」");
+
+          // Keep listening continuously until the user manually clicks "停止說話"
+          if (state.isRecording) {
+            const delay = state.restartBackoffMs;
+            clearTimeout(state.restartTimer);
+            state.restartTimer = setTimeout(() => {
+              if (state.isRecording) {
+                createAndStartRecognition(true);
+              }
+            }, delay);
+          } else {
+            updateRecordingVisualState(false);
           }
         };
 
         state.recognition = recognition;
-        try { recognition.start(); } catch (_) { state.isRecording = false; updateRecordingVisualState(false); showToast("無法啟動麥克風，請再試一次"); }
+        try {
+          recognition.start();
+        } catch (_) {
+          if (state.isRecording && isAutoRestart) {
+            state.restartBackoffMs = Math.min(2000, state.restartBackoffMs * 2);
+            clearTimeout(state.restartTimer);
+            state.restartTimer = setTimeout(() => {
+              if (state.isRecording) createAndStartRecognition(true);
+            }, state.restartBackoffMs);
+          } else {
+            state.isRecording = false;
+            updateRecordingVisualState(false);
+            showToast("無法啟動麥克風，請再試一次");
+          }
+        }
       }
 
       function toggleMicrophone() {
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-        if (!SpeechRecognition) { els.micFallbackText.textContent = "此瀏覽器暫不支援語音識別，請使用 Chrome / Edge 或直接使用下方輸入框與「試講一句」。"; els.micFallbackBanner.classList.remove("hidden"); els.manualTextInput.focus(); return; }
+        if (!SpeechRecognition) {
+          els.micFallbackText.textContent = "此瀏覽器暫不支援語音識別，請使用 Chrome / Edge 或直接使用下方輸入框與「試講一句」。";
+          els.micFallbackBanner.classList.remove("hidden");
+          els.manualTextInput.focus();
+          return;
+        }
         if (state.isRecording) {
-          state.isRecording = false; const pendingText = state.interimBuffer.trim(); teardownRecognition(); clearInterimState(); updateRecordingVisualState(false);
+          // Manual stop by user
+          state.isRecording = false;
+          const pendingText = state.interimBuffer.trim();
+          teardownRecognition();
+          clearInterimState();
+          updateRecordingVisualState(false);
           if (pendingText) commitRecognizedSentence(pendingText);
-        } else { state.isRecording = true; updateRecordingVisualState(true); createAndStartRecognition(); showToast(`正在聆聽：${SPOKEN_LANGUAGES[state.spokenLang].engineLabel}`); }
+          showToast("已手動停止語音翻譯");
+        } else {
+          state.isRecording = true;
+          state.restartBackoffMs = 150;
+          updateRecordingVisualState(true);
+          createAndStartRecognition(false);
+          showToast(`已開始持續聆聽：${SPOKEN_LANGUAGES[state.spokenLang].engineLabel}（按「停止說話」結束）`);
+        }
       }
 
       function speakText(text, langCode) {
@@ -2255,8 +2900,21 @@
             closeSummaryModal();
             toggleSettingsPopover(false);
             toggleExportPopover(false);
+            togglePopupPopover(false);
+            if (state.popupMode === "overlay" && state.textOnlyFullscreen) {
+              setOverlayFullscreen(false);
+            }
           }
         });
+        document.addEventListener("fullscreenchange", () => {
+          if (!document.fullscreenElement && state.popupMode === "overlay" && state.textOnlyFullscreen) {
+            state.textOnlyFullscreen = false;
+            els.floatingOverlayCard.classList.remove("overlay-fullscreen");
+            updatePopupButtonVisualState();
+            syncPopupView();
+          }
+        });
+
         els.regenerateSummaryBtn.addEventListener("click", () => buildMeetingSummary(true));
         els.summaryLangSelect.addEventListener("change", () => buildMeetingSummary(true));
         els.summaryStyleSelect.addEventListener("change", () => buildMeetingSummary(true));
@@ -2297,12 +2955,61 @@
         els.exportFullTxtBtn.addEventListener("click", () => handleExportAction({ format: "txt", includeSummary: true, includeTranscript: true }));
         els.exportFullWordBtn.addEventListener("click", () => handleExportAction({ format: "docx", includeSummary: true, includeTranscript: true }));
 
-        // Popup & Overlay Events
-        els.popupWindowBtn.addEventListener("click", openPopupMode);
+        // Popup Dropdown & Overlay Events
+        els.popupWindowBtn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          togglePopupPopover();
+        });
+        els.openStandardPopupBtn.addEventListener("click", () => openPopupMode("standard"));
+        els.openTextOnlyPopupBtn.addEventListener("click", () => openPopupMode("text-only"));
+        els.openTextOnlyFullscreenBtn.addEventListener("click", () => openTextOnlyFullscreenStage());
+        els.popoverSentDecBtn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          adjustTextOnlySentenceLimit(-1);
+        });
+        els.popoverSentIncBtn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          adjustTextOnlySentenceLimit(1);
+        });
+        els.closeActivePopupBtn.addEventListener("click", () => {
+          togglePopupPopover(false);
+          closePopupMode();
+          showToast("已關閉懸浮視窗");
+        });
+
         els.overlayMicBtn.addEventListener("click", toggleMicrophone);
-        els.overlayThemeBtn.addEventListener("click", () => { state.popupDarkTheme = !state.popupDarkTheme; syncPopupView(); });
-        els.overlayFontDecBtn.addEventListener("click", () => { state.popupFontSize = Math.max(14, state.popupFontSize - 2); syncPopupView(); });
-        els.overlayFontIncBtn.addEventListener("click", () => { state.popupFontSize = Math.min(30, state.popupFontSize + 2); syncPopupView(); });
+        els.overlaySentDecBtn.addEventListener("click", () => adjustTextOnlySentenceLimit(-1));
+        els.overlaySentIncBtn.addEventListener("click", () => adjustTextOnlySentenceLimit(1));
+        els.overlayOrigToggleBtn.addEventListener("click", () => {
+          state.textOnlyShowOriginal = !state.textOnlyShowOriginal;
+          syncPopupView();
+        });
+        els.overlayThemeBtn.addEventListener("click", () => {
+          if (state.popupVariant === "text-only") cycleTextOnlyTheme();
+          else { state.popupDarkTheme = !state.popupDarkTheme; syncPopupView(); }
+        });
+        els.overlayFontDecBtn.addEventListener("click", () => {
+          if (state.popupVariant === "text-only") state.textOnlyFontSize = Math.max(16, state.textOnlyFontSize - 2);
+          else state.popupFontSize = Math.max(14, state.popupFontSize - 2);
+          syncPopupView();
+        });
+        els.overlayFontIncBtn.addEventListener("click", () => {
+          if (state.popupVariant === "text-only") state.textOnlyFontSize = Math.min(56, state.textOnlyFontSize + 2);
+          else state.popupFontSize = Math.min(30, state.popupFontSize + 2);
+          syncPopupView();
+        });
+        els.overlayFullscreenBtn.addEventListener("click", () => {
+          setOverlayFullscreen(!state.textOnlyFullscreen);
+        });
+        els.overlayFeedBody.addEventListener("dblclick", () => {
+          if (state.popupMode === "overlay" && state.popupVariant === "text-only") {
+            setOverlayFullscreen(!state.textOnlyFullscreen);
+          }
+        });
+        els.overlayStageCloseBtn.addEventListener("click", () => {
+          closePopupMode();
+          showToast("已關閉 Text-only 視窗");
+        });
         els.overlayCloseBtn.addEventListener("click", () => { closePopupMode(); showToast("已關閉懸浮視窗"); });
 
         // Settings Popover Events
@@ -2310,6 +3017,7 @@
         document.addEventListener("click", (e) => {
           if (!els.settingsPopover.contains(e.target) && !els.settingsGearBtn.contains(e.target)) toggleSettingsPopover(false);
           if (!els.exportPopover.contains(e.target) && !els.exportMenuBtn.contains(e.target)) toggleExportPopover(false);
+          if (!els.popupPopover.contains(e.target) && !els.popupWindowBtn.contains(e.target)) togglePopupPopover(false);
         });
         els.popoverApiKeyInput.addEventListener("input", (e) => {
           state.userApiKey = e.target.value.trim();
@@ -2367,10 +3075,10 @@
             els.micFallbackText.textContent = "此瀏覽器暫不支援語音識別，請使用 Chrome / Edge 或直接使用下方輸入框與「試講一句」。";
             els.micFallbackBanner.classList.remove("hidden");
           } else if (window.location.protocol === "file:") {
-            els.micFallbackText.textContent = "提示：目前以本機檔案 (file://) 開啟，按「開始說話」並點選「允許」一次後即可連續講多句；若要瀏覽器永久記住權限，請透過 localhost 或 HTTPS 開啟。";
+            els.micFallbackText.textContent = "提示：目前以本機檔案 (file://) 開啟，若瀏覽器多次要求麥克風權限，建議透過 localhost 或 HTTPS 開啟以永久記住權限。";
             els.micFallbackBanner.classList.remove("hidden");
           }
-          bindEvents(); initOverlayDrag(); syncLanguageUI(); renderTranscriptFeed();
+          bindEvents(); initOverlayDrag(); updatePopupButtonVisualState(); syncLanguageUI(); renderTranscriptFeed();
         } catch (_) { showToast("初始化時發生錯誤，請重新整理頁面"); }
       };
     })();
