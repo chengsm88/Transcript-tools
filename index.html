@@ -89,7 +89,7 @@
     .recording .wave-bar:nth-child(3) { animation: teamsWave 0.8s ease-in-out infinite 0.1s; }
     .recording .wave-bar:nth-child(4) { animation: teamsWave 0.6s ease-in-out infinite 0.25s; }
 
-    /* Subtle Fluent Shimmer for Translating State */
+    /* Subtle Fluent Shimmer for Translating / Summarizing State */
     @keyframes fluentShimmer {
       0% { background-position: -200% 0; }
       100% { background-position: 200% 0; }
@@ -128,14 +128,16 @@
       box-shadow: 0 14px 38px rgba(0, 0, 0, 0.22), 0 2px 8px rgba(0, 0, 0, 0.12);
     }
   </style>
+  <!-- LAME MP3 Encoder for native client-side .mp3 recording export -->
+  <script src="https://cdn.jsdelivr.net/npm/lamejs@1.2.1/lame.min.js" onerror="var s=document.createElement('script');s.src='https://unpkg.com/lamejs@1.2.1/lame.min.js';document.head.appendChild(s);"></script>
 </head>
 <body class="bg-teams-canvas text-teams-text min-h-screen flex flex-col selection:bg-teams-primary/20 selection:text-teams-primary">
 
-  <!-- Non-blocking Fluent Toast Container (Replaces alert() completely) -->
+  <!-- Non-blocking Fluent Toast Container -->
   <div id="toastContainer" class="fixed top-4 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-2 max-w-[92vw] pointer-events-none"></div>
 
   <!-- Main Centered Teams Transcript Workspace -->
-  <div class="flex-1 w-full max-w-3xl mx-auto px-2 sm:px-6 py-2 sm:py-5 flex flex-col">
+  <div class="flex-1 w-full max-w-4xl mx-auto px-2 sm:px-6 py-2 sm:py-5 flex flex-col">
 
     <!-- Primary White Teams Transcript Card (#FFFFFF) -->
     <div class="relative flex-1 bg-teams-surface rounded-xl sm:rounded-2xl border border-teams-border fluent-panel flex flex-col overflow-hidden min-h-[calc(100vh-1rem)] sm:min-h-[calc(100vh-2.5rem)] max-h-[calc(100vh-1rem)] sm:max-h-[calc(100vh-2.5rem)]">
@@ -143,7 +145,7 @@
       <!-- =================================================================== -->
       <!-- 1. MINIMALIST TEAMS TRANSCRIPT HEADER                               -->
       <!-- =================================================================== -->
-      <header class="relative z-30 flex items-center justify-between gap-2 px-4 sm:px-6 py-3 bg-teams-surface border-b border-teams-subtle shrink-0">
+      <header class="relative z-30 flex items-center justify-between gap-2 px-3 sm:px-6 py-3 bg-teams-surface border-b border-teams-subtle shrink-0 flex-wrap">
         <!-- Left: "Transcript" Title + Active Language Pair Pill + Live Status -->
         <div class="flex items-center gap-2 min-w-0 flex-wrap">
           <h1 class="text-[18px] sm:text-[20px] font-bold tracking-tight text-teams-text">
@@ -162,20 +164,65 @@
           </div>
         </div>
 
-        <!-- Right: Pop-up 懸浮視窗, Copy All, Settings Gear (⚙), Clear -->
-        <div class="flex items-center gap-1 sm:gap-1.5 shrink-0">
-          <!-- Prominent Pop-up Floating Window Button -->
+        <!-- Right: 整理重點, 匯出 (TXT/Word), Pop-up, Copy All, Settings Gear (⚙), Clear -->
+        <div class="flex items-center gap-1 sm:gap-1.5 shrink-0 flex-wrap">
+          <!-- Audio Recording & MP3 Export Button -->
+          <button
+            id="headerAudioRecBtn"
+            type="button"
+            aria-label="會議錄音與匯出 MP3"
+            title="錄製會議音訊並匯出 MP3"
+            class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-teams-danger bg-[#FDF2F4] hover:bg-teams-danger hover:text-white border border-[#F3C6CE] focus:outline-none focus:ring-2 focus:ring-teams-danger/40 transition"
+          >
+            <span id="headerRecDot" class="w-2 h-2 rounded-full bg-teams-danger shrink-0"></span>
+            <span id="headerRecLabel">錄音</span>
+          </button>
+
+          <!-- Meeting Key Points Organizer Button -->
+          <button
+            id="summarizeMeetingBtn"
+            type="button"
+            aria-label="整理開會重點內容"
+            title="整理開會重點內容"
+            class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-teams-primary bg-teams-primaryLight hover:bg-teams-primary hover:text-white border border-teams-primary/30 focus:outline-none focus:ring-2 focus:ring-teams-primary/40 transition"
+          >
+            <svg class="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25z" />
+            </svg>
+            <span>整理重點</span>
+          </button>
+
+                    <!-- Export Dropdown Button (TXT / Word) -->
+          <button
+            id="exportMenuBtn"
+            type="button"
+            aria-label="匯出翻譯內容為 TXT 或 Word"
+            aria-expanded="false"
+            title="匯出 TXT 或 Word (.docx)"
+            class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-teams-text bg-white hover:bg-teams-hover border border-teams-border focus:outline-none focus:ring-2 focus:ring-teams-primary/40 transition"
+          >
+            <svg class="w-3.5 h-3.5 text-teams-primary shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+            </svg>
+            <span>匯出</span>
+            <svg class="w-3 h-3 text-teams-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+            </svg>
+          </button>
+
+          <!-- Pop-up Floating Window Button -->
           <button
             id="popupWindowBtn"
             type="button"
             aria-label="開啟 Pop-up 懸浮翻譯視窗"
             title="開啟 Pop-up 懸浮翻譯視窗"
-            class="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-semibold text-teams-primary bg-teams-primaryLight hover:bg-teams-primary hover:text-white border border-teams-primary/30 focus:outline-none focus:ring-2 focus:ring-teams-primary/40 transition"
+            class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-teams-primary bg-teams-primaryLight hover:bg-teams-primary hover:text-white border border-teams-primary/30 focus:outline-none focus:ring-2 focus:ring-teams-primary/40 transition"
           >
             <svg class="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
               <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
             </svg>
-            <span>Pop-up 懸浮視窗</span>
+            <span class="hidden sm:inline">Pop-up 懸浮視窗</span>
+            <span class="sm:hidden">懸浮</span>
           </button>
 
           <!-- Copy All Sentences Button -->
@@ -184,12 +231,12 @@
             type="button"
             aria-label="複製全部譯文"
             title="複製全部"
-            class="inline-flex items-center gap-1 px-2 py-2 rounded-lg text-xs font-medium text-teams-muted hover:text-teams-text hover:bg-teams-hover focus:outline-none focus:ring-2 focus:ring-teams-primary/40 transition"
+            class="inline-flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-medium text-teams-muted hover:text-teams-text hover:bg-teams-hover focus:outline-none focus:ring-2 focus:ring-teams-primary/40 transition"
           >
             <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
               <path stroke-linecap="round" stroke-linejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
             </svg>
-            <span class="hidden md:inline">複製全部</span>
+            <span class="hidden lg:inline">複製全部</span>
           </button>
 
           <!-- Settings Gear Button -->
@@ -199,7 +246,7 @@
             aria-label="語言與顯示設定"
             aria-expanded="false"
             title="語言與顯示設定"
-            class="p-2 rounded-lg text-teams-muted hover:text-teams-text hover:bg-teams-hover focus:outline-none focus:ring-2 focus:ring-teams-primary/40 transition"
+            class="p-1.5 rounded-lg text-teams-muted hover:text-teams-text hover:bg-teams-hover focus:outline-none focus:ring-2 focus:ring-teams-primary/40 transition"
           >
             <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
               <path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
@@ -213,12 +260,12 @@
             type="button"
             aria-label="清除紀錄"
             title="清除"
-            class="inline-flex items-center gap-1 px-2 py-2 rounded-lg text-xs font-medium text-teams-muted hover:text-teams-text hover:bg-teams-hover focus:outline-none focus:ring-2 focus:ring-teams-primary/40 transition"
+            class="inline-flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-medium text-teams-muted hover:text-teams-text hover:bg-teams-hover focus:outline-none focus:ring-2 focus:ring-teams-primary/40 transition"
           >
             <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
               <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
             </svg>
-            <span id="clearBtnLabel" class="hidden sm:inline">清除</span>
+            <span id="clearBtnLabel" class="hidden md:inline">清除</span>
           </button>
         </div>
 
@@ -329,7 +376,105 @@
               <span id="toggleAutoSpeakKnob" class="inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform duration-200 translate-x-[3px]"></span>
             </button>
           </div>
+
+          <div class="border-t border-teams-subtle"></div>
+
+          <!-- Optional Gemini API Key for AI Meeting Summary & Enhanced Translation -->
+          <div class="space-y-1">
+            <label for="popoverApiKeyInput" class="block text-xs font-semibold text-teams-muted">
+              Gemini API Key <span class="font-normal">(選填 · 啟用進階 AI 重點整理)</span>
+            </label>
+            <input
+              id="popoverApiKeyInput"
+              type="password"
+              autocomplete="off"
+              placeholder="留空亦可使用內建智能重點整理..."
+              class="w-full px-2.5 py-1.5 rounded-lg text-xs bg-[#F5F5F5] border border-teams-border text-teams-text focus:bg-white focus:border-teams-primary focus:outline-none"
+            />
+          </div>
         </div>
+
+        <!-- Export Fluent Popover -->
+            <div
+              id="exportPopover"
+              role="menu"
+              aria-label="匯出格式選擇"
+              class="fluent-popover popover-hidden absolute top-[54px] left-3 w-[285px] max-w-[calc(100vw-1.5rem)] bg-white rounded-xl p-2 z-50 space-y-1"
+            >
+              <div class="px-2.5 py-1.5 text-[11px] font-semibold text-teams-muted">
+                匯出翻譯逐字稿
+              </div>
+              <button
+                id="exportTxtBtn"
+                type="button"
+                role="menuitem"
+                class="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-left text-xs font-medium text-teams-text hover:bg-teams-hover transition"
+              >
+                <span class="w-7 h-7 rounded-md bg-[#F3F4F6] text-teams-text flex items-center justify-center font-bold text-[11px] shrink-0">TXT</span>
+                <div class="min-w-0">
+                  <div class="font-semibold text-teams-text">匯出為純文字 (.txt)</div>
+                  <div class="text-[11px] text-teams-muted truncate">包含所有翻譯及原文紀錄</div>
+                </div>
+              </button>
+              <button
+                id="exportWordBtn"
+                type="button"
+                role="menuitem"
+                class="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-left text-xs font-medium text-teams-text hover:bg-teams-hover transition"
+              >
+                <span class="w-7 h-7 rounded-md bg-teams-primaryLight text-teams-primary flex items-center justify-center font-bold text-[10px] shrink-0">DOCX</span>
+                <div class="min-w-0">
+                  <div class="font-semibold text-teams-text">匯出為 Word (.docx)</div>
+                  <div class="text-[11px] text-teams-muted truncate">Microsoft Word 雙語排版文件</div>
+                </div>
+              </button>
+
+              <div class="my-1 border-t border-teams-subtle"></div>
+              <div class="px-2.5 py-1 text-[11px] font-semibold text-teams-muted">
+                連同開會重點整理一併匯出
+              </div>
+              <button
+                id="exportFullTxtBtn"
+                type="button"
+                role="menuitem"
+                class="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-left text-xs font-medium text-teams-text hover:bg-teams-hover transition"
+              >
+                <span class="w-7 h-7 rounded-md bg-emerald-50 text-emerald-700 flex items-center justify-center font-bold text-[11px] shrink-0">TXT+</span>
+                <div class="min-w-0">
+                  <div class="font-semibold text-teams-text">開會重點 + 逐字稿 (.txt)</div>
+                  <div class="text-[11px] text-teams-muted truncate">自動整理重點並匯出純文字</div>
+                </div>
+              </button>
+              <button
+                id="exportFullWordBtn"
+                type="button"
+                role="menuitem"
+                class="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-left text-xs font-medium text-teams-text hover:bg-teams-hover transition"
+              >
+                <span class="w-7 h-7 rounded-md bg-teams-primary text-white flex items-center justify-center font-bold text-[10px] shrink-0">DOC+</span>
+                <div class="min-w-0">
+                  <div class="font-semibold text-teams-text">開會重點 + 逐字稿 (.docx)</div>
+                  <div class="text-[11px] text-teams-muted truncate">完整會議紀要與雙語紀錄 Word</div>
+                </div>
+              </button>
+
+              <div class="my-1 border-t border-teams-subtle"></div>
+              <div class="px-2.5 py-1 text-[11px] font-semibold text-teams-muted">
+                音訊錄音匯出
+              </div>
+              <button
+                id="exportLatestMp3Btn"
+                type="button"
+                role="menuitem"
+                class="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-left text-xs font-medium text-teams-text hover:bg-teams-hover transition"
+              >
+                <span class="w-7 h-7 rounded-md bg-[#FDF2F4] text-teams-danger flex items-center justify-center font-bold text-[10px] shrink-0">MP3</span>
+                <div class="min-w-0">
+                  <div class="font-semibold text-teams-text">匯出會議錄音 (.mp3)</div>
+                  <div id="exportMp3Sublabel" class="text-[11px] text-teams-muted truncate">下載最新錄製的 MP3 音訊檔</div>
+                </div>
+              </button>
+            </div>
       </header>
 
       <!-- =================================================================== -->
@@ -394,105 +539,100 @@
 
         <!-- One-Click Quick Direction Pills -->
         <div class="flex items-center gap-1.5 flex-wrap">
-          <button
-            type="button"
-            data-pair="auto:yue"
-            class="pair-pill px-2.5 py-1.5 rounded-full text-xs font-semibold border transition active:scale-95"
-          >
-            Auto ➔ 廣東話
-          </button>
-          <button
-            type="button"
-            data-pair="en-US:BOTH"
-            class="pair-pill px-2.5 py-1.5 rounded-full text-xs font-semibold border transition active:scale-95"
-          >
-            英文 ➔ 廣東話 + 中文
-          </button>
-          <button
-            type="button"
-            data-pair="zh-CN:BOTH"
-            class="pair-pill px-2.5 py-1.5 rounded-full text-xs font-semibold border transition active:scale-95"
-          >
-            中文 ➔ 廣東話 + 英文
-          </button>
-          <button
-            type="button"
-            data-pair="zh-HK:BOTH"
-            class="pair-pill px-2.5 py-1.5 rounded-full text-xs font-semibold border transition active:scale-95"
-          >
-            廣東話 ➔ 英文 + 中文
-          </button>
-          <button
-            type="button"
-            data-pair="ja-JP:yue"
-            class="pair-pill px-2.5 py-1.5 rounded-full text-xs font-semibold border transition active:scale-95"
-          >
-            日文 ➔ 廣東話
-          </button>
-          <button
-            type="button"
-            data-pair="ko-KR:yue"
-            class="pair-pill px-2.5 py-1.5 rounded-full text-xs font-semibold border transition active:scale-95"
-          >
-            韓文 ➔ 廣東話
-          </button>
-          <button
-            type="button"
-            data-pair="fr-FR:yue"
-            class="pair-pill px-2.5 py-1.5 rounded-full text-xs font-semibold border transition active:scale-95"
-          >
-            法文 ➔ 廣東話
-          </button>
-          <button
-            type="button"
-            data-pair="de-DE:yue"
-            class="pair-pill px-2.5 py-1.5 rounded-full text-xs font-semibold border transition active:scale-95"
-          >
-            德文 ➔ 廣東話
-          </button>
-          <button
-            type="button"
-            data-pair="es-ES:yue"
-            class="pair-pill px-2.5 py-1.5 rounded-full text-xs font-semibold border transition active:scale-95"
-          >
-            西班牙文 ➔ 廣東話
-          </button>
-          <button
-            type="button"
-            data-pair="zh-HK:ja"
-            class="pair-pill px-2.5 py-1.5 rounded-full text-xs font-semibold border transition active:scale-95"
-          >
-            廣東話 ➔ 日文
-          </button>
-          <button
-            type="button"
-            data-pair="zh-HK:ko"
-            class="pair-pill px-2.5 py-1.5 rounded-full text-xs font-semibold border transition active:scale-95"
-          >
-            廣東話 ➔ 韓文
-          </button>
-          <button
-            type="button"
-            data-pair="zh-HK:fr"
-            class="pair-pill px-2.5 py-1.5 rounded-full text-xs font-semibold border transition active:scale-95"
-          >
-            廣東話 ➔ 法文
-          </button>
-          <button
-            type="button"
-            data-pair="zh-HK:de"
-            class="pair-pill px-2.5 py-1.5 rounded-full text-xs font-semibold border transition active:scale-95"
-          >
-            廣東話 ➔ 德文
-          </button>
-          <button
-            type="button"
-            data-pair="zh-HK:es"
-            class="pair-pill px-2.5 py-1.5 rounded-full text-xs font-semibold border transition active:scale-95"
-          >
-            廣東話 ➔ 西班牙文
-          </button>
+          <button type="button" data-pair="auto:yue" class="pair-pill px-2.5 py-1.5 rounded-full text-xs font-semibold border transition active:scale-95">Auto ➔ 廣東話</button>
+          <button type="button" data-pair="en-US:BOTH" class="pair-pill px-2.5 py-1.5 rounded-full text-xs font-semibold border transition active:scale-95">英文 ➔ 廣東話 + 中文</button>
+          <button type="button" data-pair="zh-CN:BOTH" class="pair-pill px-2.5 py-1.5 rounded-full text-xs font-semibold border transition active:scale-95">中文 ➔ 廣東話 + 英文</button>
+          <button type="button" data-pair="zh-HK:BOTH" class="pair-pill px-2.5 py-1.5 rounded-full text-xs font-semibold border transition active:scale-95">廣東話 ➔ 英文 + 中文</button>
+          <button type="button" data-pair="ja-JP:yue" class="pair-pill px-2.5 py-1.5 rounded-full text-xs font-semibold border transition active:scale-95">日文 ➔ 廣東話</button>
+          <button type="button" data-pair="ko-KR:yue" class="pair-pill px-2.5 py-1.5 rounded-full text-xs font-semibold border transition active:scale-95">韓文 ➔ 廣東話</button>
+          <button type="button" data-pair="fr-FR:yue" class="pair-pill px-2.5 py-1.5 rounded-full text-xs font-semibold border transition active:scale-95">法文 ➔ 廣東話</button>
+          <button type="button" data-pair="de-DE:yue" class="pair-pill px-2.5 py-1.5 rounded-full text-xs font-semibold border transition active:scale-95">德文 ➔ 廣東話</button>
+          <button type="button" data-pair="es-ES:yue" class="pair-pill px-2.5 py-1.5 rounded-full text-xs font-semibold border transition active:scale-95">西班牙文 ➔ 廣東話</button>
+          <button type="button" data-pair="zh-HK:ja" class="pair-pill px-2.5 py-1.5 rounded-full text-xs font-semibold border transition active:scale-95">廣東話 ➔ 日文</button>
+          <button type="button" data-pair="zh-HK:ko" class="pair-pill px-2.5 py-1.5 rounded-full text-xs font-semibold border transition active:scale-95">廣東話 ➔ 韓文</button>
+          <button type="button" data-pair="zh-HK:fr" class="pair-pill px-2.5 py-1.5 rounded-full text-xs font-semibold border transition active:scale-95">廣東話 ➔ 法文</button>
+          <button type="button" data-pair="zh-HK:de" class="pair-pill px-2.5 py-1.5 rounded-full text-xs font-semibold border transition active:scale-95">廣東話 ➔ 德文</button>
+          <button type="button" data-pair="zh-HK:es" class="pair-pill px-2.5 py-1.5 rounded-full text-xs font-semibold border transition active:scale-95">廣東話 ➔ 西班牙文</button>
         </div>
+      </section>
+
+      <!-- =================================================================== -->
+      <!-- AUDIO RECORDER & MP3 EXPORT STUDIO PANEL                            -->
+      <!-- =================================================================== -->
+      <section
+        id="audioRecorderPanel"
+        aria-label="會議錄音與 MP3 匯出工作區"
+        class="hidden bg-[#FFF9FA] border-b border-[#F3D2D8] px-4 sm:px-6 py-3 space-y-2.5 shrink-0 transition-colors"
+      >
+        <div class="flex items-center justify-between gap-2 flex-wrap">
+          <!-- Left: Status Badge + Live Timer + Dynamic Level Meter -->
+          <div class="flex items-center gap-2.5 min-w-0">
+            <span id="recPanelBadge" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-[#FDF2F4] text-teams-danger border border-[#F3C6CE]">
+              <span id="recPanelDot" class="w-2 h-2 rounded-full bg-teams-danger"></span>
+              <span id="recPanelStatusText">錄音就緒</span>
+            </span>
+
+            <span id="recTimerDisplay" class="font-mono text-sm font-bold text-teams-text tabular-nums tracking-wide">
+              00:00
+            </span>
+
+            <!-- Real-time 8-bar Audio Level Equalizer -->
+            <div id="recLevelBars" class="flex items-end gap-0.5 h-4 px-1.5" aria-hidden="true">
+              <span class="rec-eq-bar w-1 h-1 rounded-full bg-teams-danger/60 transition-all duration-75"></span>
+              <span class="rec-eq-bar w-1 h-1 rounded-full bg-teams-danger/60 transition-all duration-75"></span>
+              <span class="rec-eq-bar w-1 h-1 rounded-full bg-teams-danger/60 transition-all duration-75"></span>
+              <span class="rec-eq-bar w-1 h-1 rounded-full bg-teams-danger/60 transition-all duration-75"></span>
+              <span class="rec-eq-bar w-1 h-1 rounded-full bg-teams-danger/60 transition-all duration-75"></span>
+              <span class="rec-eq-bar w-1 h-1 rounded-full bg-teams-danger/60 transition-all duration-75"></span>
+              <span class="rec-eq-bar w-1 h-1 rounded-full bg-teams-danger/60 transition-all duration-75"></span>
+              <span class="rec-eq-bar w-1 h-1 rounded-full bg-teams-danger/60 transition-all duration-75"></span>
+            </div>
+          </div>
+
+          <!-- Right: Start/Resume, Pause, Stop & Save MP3, Close Panel -->
+          <div class="flex items-center gap-1.5 flex-wrap">
+            <button
+              id="recStartResumeBtn"
+              type="button"
+              class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white bg-teams-danger hover:opacity-95 active:scale-95 transition"
+            >
+              <span class="w-2 h-2 rounded-full bg-white"></span>
+              <span id="recStartResumeLabel">開始錄音</span>
+            </button>
+
+            <button
+              id="recPauseBtn"
+              type="button"
+              disabled
+              class="hidden inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-teams-text bg-white hover:bg-teams-hover border border-teams-border disabled:opacity-45 transition"
+            >
+              <span>⏸ 暫停</span>
+            </button>
+
+            <button
+              id="recStopSaveBtn"
+              type="button"
+              disabled
+              class="hidden inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white bg-teams-primary hover:bg-teams-primaryHover disabled:opacity-45 shadow-2xs transition"
+            >
+              <span>⏹ 停止並生成 MP3</span>
+            </button>
+
+            <button
+              id="recClosePanelBtn"
+              type="button"
+              title="收合錄音面板（背景仍會繼續錄音）"
+              class="p-1.5 rounded-lg text-teams-muted hover:text-teams-text hover:bg-black/5 transition"
+            >
+              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- Recorded MP3 Clips List -->
+        <div id="recordingsListWrapper" class="hidden pt-1 space-y-2 max-h-[165px] overflow-y-auto pr-0.5"></div>
       </section>
 
       <!-- Subtle Microphone Permission / Fallback Banner -->
@@ -590,6 +730,150 @@
   </div>
 
   <!-- ======================================================================= -->
+  <!-- MEETING KEY POINTS ORGANIZER MODAL (開會重點內容整理)                    -->
+  <!-- ======================================================================= -->
+  <div
+    id="summaryModalBackdrop"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="summaryModalTitle"
+    class="hidden fixed inset-0 z-50 bg-black/45 backdrop-blur-[1px] flex items-center justify-center p-3 sm:p-6"
+  >
+    <div class="w-full max-w-2xl max-h-[90vh] bg-white rounded-2xl border border-teams-border shadow-2xl flex flex-col overflow-hidden">
+      <!-- Modal Header -->
+      <div class="flex items-center justify-between gap-3 px-5 py-3.5 border-b border-teams-subtle bg-[#FAFAFA] shrink-0">
+        <div class="flex items-center gap-2.5 min-w-0">
+          <div class="w-8 h-8 rounded-lg bg-teams-primaryLight text-teams-primary flex items-center justify-center shrink-0">
+            <svg class="w-4.5 h-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25z" />
+            </svg>
+          </div>
+          <div class="min-w-0">
+            <h2 id="summaryModalTitle" class="text-[16px] font-bold text-teams-text truncate">
+              開會重點內容整理
+            </h2>
+            <p id="summaryModalSubtitle" class="text-xs text-teams-muted truncate">
+              自動提煉會議摘要、討論重點、決議及跟進事項
+            </p>
+          </div>
+        </div>
+
+        <button
+          id="closeSummaryModalBtn"
+          type="button"
+          aria-label="關閉開會重點視窗"
+          class="p-1.5 rounded-lg text-teams-muted hover:text-teams-text hover:bg-teams-hover transition"
+        >
+          <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+
+      <!-- Summary Configuration Toolbar -->
+      <div class="px-5 py-3 bg-white border-b border-teams-subtle flex flex-wrap items-center gap-2.5 shrink-0">
+        <div class="flex items-center gap-1.5">
+          <label for="summaryLangSelect" class="text-xs font-semibold text-teams-muted whitespace-nowrap">重點語言：</label>
+          <select
+            id="summaryLangSelect"
+            class="px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-[#F5F5F5] border border-teams-border text-teams-text focus:bg-white focus:border-teams-primary focus:outline-none"
+          >
+            <option value="yue">廣東話 (繁體中文)</option>
+            <option value="zh-TW">書面繁體中文</option>
+            <option value="zh">簡體中文</option>
+            <option value="en">英文 English</option>
+            <option value="ja">日文 日本語</option>
+            <option value="ko">韓文 한국어</option>
+          </select>
+        </div>
+
+        <div class="flex items-center gap-1.5">
+          <label for="summaryStyleSelect" class="text-xs font-semibold text-teams-muted whitespace-nowrap">整理模板：</label>
+          <select
+            id="summaryStyleSelect"
+            class="px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-[#F5F5F5] border border-teams-border text-teams-text focus:bg-white focus:border-teams-primary focus:outline-none"
+          >
+            <option value="standard">標準會議紀要（摘要／重點／決議／跟進）</option>
+            <option value="bullets">精簡重點條列（快速重點 + 待辦清單）</option>
+            <option value="client">客戶／項目跟進（需求／報價時程／下一步）</option>
+          </select>
+        </div>
+
+        <button
+          id="regenerateSummaryBtn"
+          type="button"
+          class="ml-auto inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-teams-primary bg-teams-primaryLight hover:bg-teams-primary hover:text-white border border-teams-primary/25 transition"
+        >
+          <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
+          </svg>
+          <span>重新整理</span>
+        </button>
+      </div>
+
+      <!-- Modal Content Body -->
+      <div class="flex-1 overflow-y-auto p-5 space-y-3">
+        <!-- Shimmer Loading Indicator -->
+        <div id="summaryLoadingBox" class="hidden space-y-2.5 py-4">
+          <div class="text-xs font-semibold text-teams-primary">正在分析會議對話並整理重點內容...</div>
+          <div class="h-4 w-2/3 rounded fluent-shimmer"></div>
+          <div class="h-4 w-full rounded fluent-shimmer"></div>
+          <div class="h-4 w-5/6 rounded fluent-shimmer"></div>
+          <div class="h-4 w-3/4 rounded fluent-shimmer"></div>
+        </div>
+
+        <!-- Editable Summary Output -->
+        <div id="summaryEditorWrapper" class="space-y-1.5">
+          <div class="flex items-center justify-between text-[11px] text-teams-muted">
+            <span>可直接修改下方內容再複製或匯出：</span>
+            <span id="summaryEngineBadge" class="px-2 py-0.5 rounded-full bg-teams-primaryLight text-teams-primary font-semibold">智能重点分析</span>
+          </div>
+          <textarea
+            id="summaryEditableArea"
+            rows="13"
+            class="w-full rounded-xl border border-teams-border bg-[#FAFAFA] focus:bg-white p-3.5 text-[14px] leading-[1.65] text-teams-text focus:border-teams-primary focus:ring-2 focus:ring-teams-primary/20 focus:outline-none transition resize-y"
+          ></textarea>
+        </div>
+      </div>
+
+      <!-- Modal Footer Export & Copy Actions -->
+      <div class="px-5 py-3.5 bg-[#FAFAFA] border-t border-teams-border flex flex-wrap items-center justify-between gap-2 shrink-0">
+        <button
+          id="copySummaryBtn"
+          type="button"
+          class="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold text-teams-text bg-white hover:bg-teams-hover border border-teams-border transition"
+        >
+          <span>📋 複製重點內容</span>
+        </button>
+
+        <div class="flex items-center gap-2 flex-wrap">
+          <button
+            id="modalExportSummaryTxtBtn"
+            type="button"
+            class="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold text-teams-text bg-white hover:bg-teams-hover border border-teams-border transition"
+          >
+            <span>📄 匯出重點 (.txt)</span>
+          </button>
+          <button
+            id="modalExportSummaryWordBtn"
+            type="button"
+            class="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold text-teams-primary bg-teams-primaryLight hover:bg-teams-primary hover:text-white border border-teams-primary/30 transition"
+          >
+            <span>📘 匯出重點 (.docx)</span>
+          </button>
+          <button
+            id="modalExportFullWordBtn"
+            type="button"
+            class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-semibold text-white bg-teams-primary hover:bg-teams-primaryHover shadow-xs transition"
+          >
+            <span>📦 重點 + 逐字稿 (.docx)</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================================================================= -->
   <!-- TERTIARY FALLBACK: DRAGGABLE & RESIZABLE FLOATING MINI-OVERLAY          -->
   <!-- ======================================================================= -->
   <aside
@@ -611,55 +895,18 @@
 
       <!-- Mini Controls: Mic, Light/Dark Toggle, A-, A+, Close -->
       <div class="flex items-center gap-1 shrink-0">
-        <button
-          id="overlayMicBtn"
-          type="button"
-          title="開始 / 停止說話"
-          class="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-semibold bg-teams-primary hover:bg-teams-primaryHover text-white transition"
-        >
+        <button id="overlayMicBtn" type="button" title="開始 / 停止說話" class="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-semibold bg-teams-primary hover:bg-teams-primaryHover text-white transition">
           <span id="overlayMicDot" class="w-1.5 h-1.5 rounded-full bg-white"></span>
           <span id="overlayMicLabel">開始說話</span>
         </button>
-
-        <button
-          id="overlayThemeBtn"
-          type="button"
-          title="切換淺色 / 深色字幕背景"
-          class="px-1.5 py-1 rounded-md text-[11px] font-medium bg-white/10 hover:bg-white/20 transition"
-        >
-          ☀️
-        </button>
-
-        <button
-          id="overlayFontDecBtn"
-          type="button"
-          title="縮小字體"
-          class="px-1.5 py-1 rounded-md text-[11px] font-bold bg-white/10 hover:bg-white/20 transition"
-        >
-          A-
-        </button>
-
-        <button
-          id="overlayFontIncBtn"
-          type="button"
-          title="放大字體"
-          class="px-1.5 py-1 rounded-md text-[11px] font-bold bg-white/10 hover:bg-white/20 transition"
-        >
-          A+
-        </button>
-
-        <button
-          id="overlayCloseBtn"
-          type="button"
-          title="關閉懸浮視窗"
-          class="p-1 rounded-md text-xs opacity-75 hover:opacity-100 hover:bg-white/10 transition"
-        >
-          ✕
-        </button>
+        <button id="overlayThemeBtn" type="button" title="切換淺色 / 深色字幕背景" class="px-1.5 py-1 rounded-md text-[11px] font-medium bg-white/10 hover:bg-white/20 transition">☀️</button>
+        <button id="overlayFontDecBtn" type="button" title="縮小字體" class="px-1.5 py-1 rounded-md text-[11px] font-bold bg-white/10 hover:bg-white/20 transition">A-</button>
+        <button id="overlayFontIncBtn" type="button" title="放大字體" class="px-1.5 py-1 rounded-md text-[11px] font-bold bg-white/10 hover:bg-white/20 transition">A+</button>
+        <button id="overlayCloseBtn" type="button" title="關閉懸浮視窗" class="p-1 rounded-md text-xs opacity-75 hover:opacity-100 hover:bg-white/10 transition">✕</button>
       </div>
     </div>
 
-    <!-- Overlay Content Stream (Zero Timestamps) -->
+    <!-- Overlay Content Stream -->
     <div id="overlayFeedBody" class="flex-1 overflow-y-auto px-3.5 py-2.5 space-y-2.5 select-text">
       <div id="overlayEmptyHint" class="h-full flex items-center justify-center text-xs opacity-65 text-center px-3">
         點擊「開始說話」，即時翻譯句子將會同步顯示於此懸浮視窗
@@ -678,8 +925,9 @@
   <script>
     (function () {
       'use strict';
-      const apiKey = "";
+      const defaultApiKey = "";
       const GEMINI_MODEL = "gemini-2.5-flash";
+      const STORAGE_API_KEY = "teams_translate_gemini_key";
 
       const SPOKEN_LANGUAGES = {
         "auto": { shortName: "Auto", engineLabel: "自動偵測 (Auto)", fullName: "Auto-detected language (Cantonese, Mandarin Chinese, English, Japanese, Korean, French, German, or Spanish)", canonicalTarget: "auto", otherTargets: ["yue", "en"], gtxSl: "auto", samples: ["Good morning everyone, let's start today's international sync meeting.", "唔該幫手睇下聽日下晝個會議議程有冇需要再改。", "本日の会議の資料を共有いたしますので、ご確認ください。"] },
@@ -710,6 +958,7 @@
         showBoth: true,
         cantoneseColloquial: true,
         autoSpeak: false,
+        userApiKey: "",
         isRecording: false,
         speechSupported: false,
         recognition: null,
@@ -728,7 +977,30 @@
         popupWindowRef: null,
         popupDarkTheme: true,
         popupFontSize: 18,
-        entries: []
+        entries: [],
+        lastGeneratedSummary: "",
+        lastSummaryEntryCount: -1,
+        lastSummaryLang: "yue",
+        lastSummaryStyle: "standard",
+        audioRec: {
+          isRecording: false,
+          isPaused: false,
+          elapsedMs: 0,
+          lastTickAt: 0,
+          timerInterval: null,
+          rafId: null,
+          stream: null,
+          audioCtx: null,
+          sourceNode: null,
+          analyserNode: null,
+          processorNode: null,
+          zeroGainNode: null,
+          mp3Encoder: null,
+          mp3Buffers: [],
+          rawPcmChunks: [],
+          sampleRate: 44100
+        },
+        recordings: []
       };
 
       const els = {
@@ -737,12 +1009,20 @@
         liveStatusPill: document.getElementById("liveStatusPill"),
         liveStatusDot: document.getElementById("liveStatusDot"),
         liveStatusLabel: document.getElementById("liveStatusLabel"),
+        summarizeMeetingBtn: document.getElementById("summarizeMeetingBtn"),
+        exportMenuBtn: document.getElementById("exportMenuBtn"),
+        exportPopover: document.getElementById("exportPopover"),
+        exportTxtBtn: document.getElementById("exportTxtBtn"),
+        exportWordBtn: document.getElementById("exportWordBtn"),
+        exportFullTxtBtn: document.getElementById("exportFullTxtBtn"),
+        exportFullWordBtn: document.getElementById("exportFullWordBtn"),
         popupWindowBtn: document.getElementById("popupWindowBtn"),
         copyAllTranscriptBtn: document.getElementById("copyAllTranscriptBtn"),
         settingsGearBtn: document.getElementById("settingsGearBtn"),
         settingsPopover: document.getElementById("settingsPopover"),
         popoverSpokenSelect: document.getElementById("popoverSpokenSelect"),
         popoverTargetSelect: document.getElementById("popoverTargetSelect"),
+        popoverApiKeyInput: document.getElementById("popoverApiKeyInput"),
         toggleShowBothBtn: document.getElementById("toggleShowBothBtn"),
         toggleShowBothKnob: document.getElementById("toggleShowBothKnob"),
         toggleCantoneseColloquialBtn: document.getElementById("toggleCantoneseColloquialBtn"),
@@ -774,6 +1054,22 @@
         manualTextInput: document.getElementById("manualTextInput"),
         samplePhraseBtn: document.getElementById("samplePhraseBtn"),
         sendTextBtn: document.getElementById("sendTextBtn"),
+        // Summary Modal Elements
+        summaryModalBackdrop: document.getElementById("summaryModalBackdrop"),
+        summaryModalSubtitle: document.getElementById("summaryModalSubtitle"),
+        closeSummaryModalBtn: document.getElementById("closeSummaryModalBtn"),
+        summaryLangSelect: document.getElementById("summaryLangSelect"),
+        summaryStyleSelect: document.getElementById("summaryStyleSelect"),
+        regenerateSummaryBtn: document.getElementById("regenerateSummaryBtn"),
+        summaryLoadingBox: document.getElementById("summaryLoadingBox"),
+        summaryEditorWrapper: document.getElementById("summaryEditorWrapper"),
+        summaryEngineBadge: document.getElementById("summaryEngineBadge"),
+        summaryEditableArea: document.getElementById("summaryEditableArea"),
+        copySummaryBtn: document.getElementById("copySummaryBtn"),
+        modalExportSummaryTxtBtn: document.getElementById("modalExportSummaryTxtBtn"),
+        modalExportSummaryWordBtn: document.getElementById("modalExportSummaryWordBtn"),
+        modalExportFullWordBtn: document.getElementById("modalExportFullWordBtn"),
+        // Floating Overlay Elements
         floatingOverlayCard: document.getElementById("floatingOverlayCard"),
         overlayDragHandle: document.getElementById("overlayDragHandle"),
         overlayPairBadge: document.getElementById("overlayPairBadge"),
@@ -789,8 +1085,30 @@
         overlaySentencesList: document.getElementById("overlaySentencesList"),
         overlayInterimBox: document.getElementById("overlayInterimBox"),
         overlayInterimText: document.getElementById("overlayInterimText"),
-        overlayInterimTrans: document.getElementById("overlayInterimTrans")
+        overlayInterimTrans: document.getElementById("overlayInterimTrans"),
+        // Audio Recorder & MP3 Export Elements
+        headerAudioRecBtn: document.getElementById("headerAudioRecBtn"),
+        headerRecDot: document.getElementById("headerRecDot"),
+        headerRecLabel: document.getElementById("headerRecLabel"),
+        exportLatestMp3Btn: document.getElementById("exportLatestMp3Btn"),
+        exportMp3Sublabel: document.getElementById("exportMp3Sublabel"),
+        audioRecorderPanel: document.getElementById("audioRecorderPanel"),
+        recPanelBadge: document.getElementById("recPanelBadge"),
+        recPanelDot: document.getElementById("recPanelDot"),
+        recPanelStatusText: document.getElementById("recPanelStatusText"),
+        recTimerDisplay: document.getElementById("recTimerDisplay"),
+        recLevelBars: document.getElementById("recLevelBars"),
+        recStartResumeBtn: document.getElementById("recStartResumeBtn"),
+        recStartResumeLabel: document.getElementById("recStartResumeLabel"),
+        recPauseBtn: document.getElementById("recPauseBtn"),
+        recStopSaveBtn: document.getElementById("recStopSaveBtn"),
+        recClosePanelBtn: document.getElementById("recClosePanelBtn"),
+        recordingsListWrapper: document.getElementById("recordingsListWrapper")
       };
+
+      function getEffectiveApiKey() {
+        return (state.userApiKey || defaultApiKey || "").trim();
+      }
 
       function showToast(message) {
         const toast = document.createElement("div");
@@ -801,7 +1119,7 @@
         setTimeout(() => {
           toast.classList.add("opacity-0", "-translate-y-1");
           setTimeout(() => toast.remove(), 220);
-        }, 2500);
+        }, 2600);
       }
 
       function getActiveTargetCodes(spokenCode, targetMode) {
@@ -880,10 +1198,31 @@
         showToast(`已切換方向：${getPairLabel(state.spokenLang, state.targetLang)}`);
       }
 
+      function positionHeaderPopover(popoverEl, anchorBtnEl, preferredWidth) {
+        const headerEl = popoverEl && popoverEl.parentElement;
+        if (!headerEl || !anchorBtnEl) return;
+        const headerRect = headerEl.getBoundingClientRect();
+        const btnRect = anchorBtnEl.getBoundingClientRect();
+        const safeWidth = Math.min(preferredWidth, Math.max(240, headerRect.width - 24));
+        popoverEl.style.width = `${safeWidth}px`;
+
+        const idealLeft = btnRect.left - headerRect.left;
+        const maxLeft = Math.max(12, headerRect.width - safeWidth - 12);
+        const clampedLeft = Math.min(Math.max(12, idealLeft), maxLeft);
+        const topOffset = Math.max(44, btnRect.bottom - headerRect.top + 8);
+
+        popoverEl.style.left = `${clampedLeft}px`;
+        popoverEl.style.right = "auto";
+        popoverEl.style.top = `${topOffset}px`;
+        popoverEl.style.transformOrigin = "top center";
+      }
+
       function toggleSettingsPopover(forceState) {
         const isHidden = els.settingsPopover.classList.contains("popover-hidden");
         const shouldOpen = typeof forceState === "boolean" ? forceState : isHidden;
         if (shouldOpen) {
+          toggleExportPopover(false);
+          positionHeaderPopover(els.settingsPopover, els.settingsGearBtn, 345);
           els.settingsPopover.classList.remove("popover-hidden");
           els.settingsGearBtn.setAttribute("aria-expanded", "true");
           els.settingsGearBtn.classList.add("bg-teams-hover", "text-teams-primary");
@@ -891,6 +1230,22 @@
           els.settingsPopover.classList.add("popover-hidden");
           els.settingsGearBtn.setAttribute("aria-expanded", "false");
           els.settingsGearBtn.classList.remove("bg-teams-hover", "text-teams-primary");
+        }
+      }
+
+      function toggleExportPopover(forceState) {
+        const isHidden = els.exportPopover.classList.contains("popover-hidden");
+        const shouldOpen = typeof forceState === "boolean" ? forceState : isHidden;
+        if (shouldOpen) {
+          toggleSettingsPopover(false);
+          positionHeaderPopover(els.exportPopover, els.exportMenuBtn, 290);
+          els.exportPopover.classList.remove("popover-hidden");
+          els.exportMenuBtn.setAttribute("aria-expanded", "true");
+          els.exportMenuBtn.classList.add("bg-teams-hover", "border-teams-primary/40");
+        } else {
+          els.exportPopover.classList.add("popover-hidden");
+          els.exportMenuBtn.setAttribute("aria-expanded", "false");
+          els.exportMenuBtn.classList.remove("bg-teams-hover", "border-teams-primary/40");
         }
       }
 
@@ -920,7 +1275,7 @@
 
       function renderTranscriptFeed() {
         if (state.entries.length === 0) {
-          els.transcriptFeedList.innerHTML = `<div class="py-14 sm:py-20 px-4 text-center space-y-3"><div class="w-12 h-12 mx-auto rounded-full bg-teams-primaryLight text-teams-primary flex items-center justify-center"><svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.9"><path stroke-linecap="round" stroke-linejoin="round" d="M12 18.75a6 6 0 006-6v-1.5m-6 7.5a6 6 0 01-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 01-3-3V4.5a3 3 0 116 0v8.25a3 3 0 01-3 3z" /></svg></div><p class="text-[15px] font-semibold text-teams-text">選擇語言方向（支援「另外兩種語言」雙語輸出），按「開始說話」或「試講一句」即時翻譯</p><p class="text-xs text-teams-muted">說話期間即時顯示雙語字幕預覽，停頓 1.2 秒自動定稿，亦可開啟右上角「Pop-up 懸浮視窗」</p></div>`;
+          els.transcriptFeedList.innerHTML = `<div class="py-14 sm:py-20 px-4 text-center space-y-3"><div class="w-12 h-12 mx-auto rounded-full bg-teams-primaryLight text-teams-primary flex items-center justify-center"><svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.9"><path stroke-linecap="round" stroke-linejoin="round" d="M12 18.75a6 6 0 006-6v-1.5m-6 7.5a6 6 0 01-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 01-3-3V4.5a3 3 0 116 0v8.25a3 3 0 01-3 3z" /></svg></div><p class="text-[15px] font-semibold text-teams-text">選擇語言方向（支援「另外兩種語言」雙語輸出），按「開始說話」或「試講一句」即時翻譯</p><p class="text-xs text-teams-muted">完成對話後，可點擊上方「整理重點」自動歸納會議紀要，或「匯出」成 TXT / Word (.docx)</p></div>`;
           syncPopupView();
           return;
         }
@@ -947,10 +1302,10 @@
 
       async function translateSingleViaGTX(text, spokenCode, targetCode) {
         const sl = SPOKEN_LANGUAGES[spokenCode]?.gtxSl || "auto";
-        const tl = TARGET_LANGUAGES[targetCode]?.gtxCode || "en";
+        const tl = TARGET_LANGUAGES[targetCode]?.gtxCode || (targetCode === "zh-TW" ? "zh-TW" : "en");
         const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=${encodeURIComponent(sl)}&tl=${encodeURIComponent(tl)}&dt=t&q=${encodeURIComponent(text)}`;
         const controller = new AbortController();
-        const timer = setTimeout(() => controller.abort(), 3000);
+        const timer = setTimeout(() => controller.abort(), 3500);
         try {
           const res = await fetch(url, { signal: controller.signal });
           if (!res.ok) throw new Error(`GTX HTTP ${res.status}`);
@@ -968,6 +1323,8 @@
       }
 
       async function translateViaGeminiWithTimeout(text, spokenCode, targetCodes) {
+        const key = getEffectiveApiKey();
+        if (!key) throw new Error("No Gemini API key");
         const sourceLabel = SPOKEN_LANGUAGES[spokenCode]?.fullName || spokenCode;
         const targetDescriptions = targetCodes.map((code) => {
           if (code === "yue") return state.cantoneseColloquial ? `"yue": Natural, authentic Hong Kong spoken Cantonese written in Traditional Chinese characters (地道香港廣東話口語，自然運用「唔該、冇問題、喺邊度、點樣、幫手睇下、依家、嘅、咗」等日常口語表達)` : `"yue": Polished Standard Traditional Chinese (地道流暢的香港繁體書面語)`;
@@ -982,7 +1339,7 @@
         const systemPrompt = `You are a real-time multilingual speech interpreter specializing in Cantonese, Mandarin Chinese, English, Japanese, Korean, French, German, and Spanish.\nAccurately understand the spoken sentence (including code-switching) from ${sourceLabel} and translate it into the requested target language(s) below:\n- ${targetDescriptions}\nReturn ONLY a valid JSON object containing the exact requested keys (${targetCodes.map((c) => `"${c}"`).join(", ")}), with clean translated sentences and proper punctuation. No markdown, no explanations, no timestamps.`;
         const properties = {};
         for (const code of targetCodes) properties[code] = { type: "STRING" };
-        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`;
+        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${encodeURIComponent(key)}`;
         const payload = { contents: [{ role: "user", parts: [{ text }] }], systemInstruction: { parts: [{ text: systemPrompt }] }, generationConfig: { responseMimeType: "application/json", responseSchema: { type: "OBJECT", properties, required: targetCodes } } };
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 3500);
@@ -1003,7 +1360,7 @@
       }
 
       async function translateSentenceToTargets(text, spokenCode, targetCodes, preferFast = false) {
-        if (preferFast) return translateViaFallbackMap(text, spokenCode, targetCodes);
+        if (preferFast || !getEffectiveApiKey()) return translateViaFallbackMap(text, spokenCode, targetCodes);
         try { return await translateViaGeminiWithTimeout(text, spokenCode, targetCodes); } catch (_) { return await translateViaFallbackMap(text, spokenCode, targetCodes); }
       }
 
@@ -1028,7 +1385,7 @@
         scrollFeedToBottom();
         try {
           const translations = await translateSentenceToTargets(cleanText, spokenCode, targetCodes, false);
-          const newEntry = { id: Date.now() + Math.random(), spokenLang: spokenCode, targetLang: targetMode, original: cleanText, translations };
+          const newEntry = { id: Date.now() + Math.random(), timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }), spokenLang: spokenCode, targetLang: targetMode, original: cleanText, translations };
           state.entries.push(newEntry);
           renderTranscriptFeed();
           scrollFeedToBottom();
@@ -1038,7 +1395,7 @@
           }
         } catch (_) {
           if (Object.keys(prefillTranslations).length === targetCodes.length) {
-            state.entries.push({ id: Date.now() + Math.random(), spokenLang: spokenCode, targetLang: targetMode, original: cleanText, translations: prefillTranslations });
+            state.entries.push({ id: Date.now() + Math.random(), timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }), spokenLang: spokenCode, targetLang: targetMode, original: cleanText, translations: prefillTranslations });
             renderTranscriptFeed();
             scrollFeedToBottom();
           } else showToast("翻譯暫時未有回應，請檢查網絡連線後再試");
@@ -1048,8 +1405,694 @@
         }
       }
 
+      // =====================================================================
+      // MEETING KEY POINTS ORGANIZER (開會重點內容整理)
+      // =====================================================================
+      function getBestTextForSummaryLang(entry, summaryLang) {
+        if (summaryLang === "yue" && entry.translations.yue) return entry.translations.yue;
+        if (summaryLang === "zh-TW" && entry.translations.yue) return entry.translations.yue;
+        if (summaryLang === "zh" && entry.translations.zh) return entry.translations.zh;
+        if (summaryLang === "en" && entry.translations.en) return entry.translations.en;
+        if (summaryLang === "ja" && entry.translations.ja) return entry.translations.ja;
+        if (summaryLang === "ko" && entry.translations.ko) return entry.translations.ko;
+
+        // If spoken language already matches summaryLang
+        const canonical = SPOKEN_LANGUAGES[entry.spokenLang]?.canonicalTarget;
+        if (canonical === summaryLang || (summaryLang === "zh-TW" && canonical === "yue")) {
+          return entry.original;
+        }
+        // Return first available translation or original
+        const firstTrans = Object.values(entry.translations)[0];
+        return firstTrans || entry.original;
+      }
+
+      async function generateSummaryViaGemini(entries, summaryLang, summaryStyle) {
+        const key = getEffectiveApiKey();
+        if (!key) throw new Error("No API key");
+
+        const langInstructions = {
+          "yue": "Traditional Chinese in authentic Hong Kong Cantonese style (地道香港廣東話書寫，清晰專業)",
+          "zh-TW": "Polished Standard Traditional Chinese (流暢專業的繁體中文書面語)",
+          "zh": "Polished Standard Simplified Chinese (流畅专业的简体中文)",
+          "en": "Clear, executive-ready English",
+          "ja": "Polished business Japanese (丁寧で分かりやすいビジネス日本語)",
+          "ko": "Polished business Korean (명확하고 전문적인 비즈니스 한국어)"
+        };
+
+        const styleInstructions = {
+          "standard": "Organize into 4 clear sections: 【會議摘要】, 【討論重點】, 【決議事項】, and 【跟進事項 (Action Items)】.",
+          "bullets": "Organize into 2 concise sections: 【核心重點速覽】 (bullet points) and 【待辦跟進清單】 (with checkboxes ☐).",
+          "client": "Organize into 3 client/project sections: 【客戶／項目核心需求】, 【報價、時間表與確認要點】, and 【下一步跟進計劃】."
+        };
+
+        const transcriptLines = entries.map((e, idx) => {
+          const transPart = Object.entries(e.translations).map(([c, t]) => `[${c}] ${t}`).join(" | ");
+          return `${idx + 1}. Original: ${e.original} | Translated: ${transPart}`;
+        }).join("\n");
+
+        const prompt = `Analyze the following multilingual meeting transcript and produce a well-structured meeting summary.\nOutput Language: ${langInstructions[summaryLang] || langInstructions["yue"]}\nFormat Requirement: ${styleInstructions[summaryStyle] || styleInstructions["standard"]}\nKeep it accurate, concise, and faithful to the transcript without inventing facts. Do not use markdown asterisks like **.\n\nTranscript:\n${transcriptLines}`;
+
+        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${encodeURIComponent(key)}`;
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 8000);
+        try {
+          const res = await fetch(apiUrl, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              contents: [{ role: "user", parts: [{ text: prompt }] }]
+            }),
+            signal: controller.signal
+          });
+          if (!res.ok) throw new Error(`Gemini HTTP ${res.status}`);
+          const data = await res.json();
+          const text = data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+          if (!text) throw new Error("Empty summary");
+          return text;
+        } finally {
+          clearTimeout(timeoutId);
+        }
+      }
+
+      async function generateSummaryHeuristic(entries, summaryLang, summaryStyle) {
+        // Gather best sentences & classify by intent
+        const decisionRegex = /(決定|確認|同意|敲定|通過|落實|就咁定|沒問題|冇問題|確定|final|finalize|finalized|confirm|confirmed|agreed|agree|approve|approved|decided|decision|確定|決定|確認し|決定し|확정|결정)/i;
+        const actionRegex = /(跟進|負責|幫手|幫忙|安排|提交|發送|準備|確認一下|睇下|看一下|明天|聽日|下週|下星期|下周|截止|請|麻煩|唔該|follow up|action|send|share|update|prepare|check|review|please|could you|tomorrow|next week|schedule|agenda|quote|quotation|確認|提出|共有|スケジュール|確認해|진행|일정|제안서)/i;
+        const greetingOnlyRegex = /^(hello|hi|good morning|good afternoon|good evening|大家好|各位早晨|早晨|你好|おはようございます|こんにちは|안녕하세요)[!！.。，,\s]*$/i;
+
+        const items = [];
+        const seen = new Set();
+
+        for (const entry of entries) {
+          const combinedSearch = `${entry.original} ${Object.values(entry.translations).join(" ")}`;
+          let textForLang = getBestTextForSummaryLang(entry, summaryLang);
+
+          // Check if textForLang likely needs translation into summaryLang
+          const hasTargetAlready =
+            (summaryLang === "yue" && Boolean(entry.translations.yue)) ||
+            (summaryLang === "zh-TW" && Boolean(entry.translations.yue)) ||
+            (summaryLang === "zh" && Boolean(entry.translations.zh)) ||
+            (summaryLang === "en" && Boolean(entry.translations.en)) ||
+            (summaryLang === "ja" && Boolean(entry.translations.ja)) ||
+            (summaryLang === "ko" && Boolean(entry.translations.ko)) ||
+            (SPOKEN_LANGUAGES[entry.spokenLang]?.canonicalTarget === summaryLang);
+
+          if (!hasTargetAlready) {
+            try {
+              const targetCode = summaryLang === "zh-TW" ? "yue" : summaryLang;
+              textForLang = await translateSingleViaGTX(entry.original, entry.spokenLang, targetCode);
+            } catch (_) {
+              // Keep fallback text
+            }
+          }
+
+          const clean = (textForLang || "").trim();
+          if (!clean) continue;
+          const normKey = clean.toLowerCase().replace(/[\s,.!?，。！？]/g, "");
+          if (seen.has(normKey)) continue;
+          seen.add(normKey);
+
+          items.push({
+            text: clean,
+            isGreetingOnly: greetingOnlyRegex.test(entry.original.trim()) || greetingOnlyRegex.test(clean),
+            isDecision: decisionRegex.test(combinedSearch),
+            isAction: actionRegex.test(combinedSearch)
+          });
+        }
+
+        const substantive = items.filter((i) => !i.isGreetingOnly);
+        const corePool = substantive.length > 0 ? substantive : items;
+
+        const decisions = corePool.filter((i) => i.isDecision).map((i) => i.text);
+        const actions = corePool.filter((i) => i.isAction).map((i) => i.text);
+        const discussion = corePool.map((i) => i.text);
+
+        const dateStr = new Date().toLocaleDateString("zh-HK", { year: "numeric", month: "2-digit", day: "2-digit" });
+        const count = entries.length;
+
+        // Build localized template
+        if (summaryLang === "en") {
+          const overview = `Meeting recorded on ${dateStr} (${count} utterances). Key topics covered: ${discussion.slice(0, 2).join(" / ")}.`;
+          if (summaryStyle === "bullets") {
+            return [
+              `[Key Takeaways]`,
+              ...discussion.map((d) => `• ${d}`),
+              ``,
+              `[Action Items]`,
+              ...(actions.length ? actions.map((a) => `☐ ${a}`) : [`☐ Review transcript and confirm next steps`])
+            ].join("\n");
+          }
+          if (summaryStyle === "client") {
+            return [
+              `[Client / Project Core Requirements]`,
+              ...discussion.map((d) => `• ${d}`),
+              ``,
+              `[Confirmed Schedule & Commercial Points]`,
+              ...(decisions.length ? decisions.map((d) => `• ${d}`) : [`• Pending final confirmation from stakeholders`]),
+              ``,
+              `[Next Steps & Follow-ups]`,
+              ...(actions.length ? actions.map((a) => `☐ ${a}`) : [`☐ Share meeting notes and follow up on schedule`])
+            ].join("\n");
+          }
+          return [
+            `[Meeting Overview]`,
+            overview,
+            ``,
+            `[Key Discussion Points]`,
+            ...discussion.map((d, idx) => `${idx + 1}. ${d}`),
+            ``,
+            `[Decisions & Confirmations]`,
+            ...(decisions.length ? decisions.map((d) => `• ${d}`) : [`• No explicit final decision detected (edit manually if needed)`]),
+            ``,
+            `[Action Items]`,
+            ...(actions.length ? actions.map((a) => `☐ ${a}`) : [`☐ Follow up on discussed items`])
+          ].join("\n");
+        }
+
+        if (summaryLang === "ja") {
+          const overview = `${dateStr} 実施の会議記録（全 ${count} 発言）。主な議題：${discussion.slice(0, 2).join("／")}。`;
+          return [
+            `【会議概要】`,
+            overview,
+            ``,
+            `【主な議論ポイント】`,
+            ...discussion.map((d, idx) => `${idx + 1}. ${d}`),
+            ``,
+            `【決定・確認事項】`,
+            ...(decisions.length ? decisions.map((d) => `・${d}`) : [`・明確な決定事項は未検出（必要に応じて手動で追記してください）`]),
+            ``,
+            `【ネクストアクション】`,
+            ...(actions.length ? actions.map((a) => `☐ ${a}`) : [`☐ 議事内容の確認および関係者への共有`])
+          ].join("\n");
+        }
+
+        if (summaryLang === "ko") {
+          const overview = `${dateStr} 회의 기록 (총 ${count}개 발언). 주요 논의 내용: ${discussion.slice(0, 2).join(" / ")}.`;
+          return [
+            `【회의 요약】`,
+            overview,
+            ``,
+            `【주요 논의 사항】`,
+            ...discussion.map((d, idx) => `${idx + 1}. ${d}`),
+            ``,
+            `【결정 및 확인 사항】`,
+            ...(decisions.length ? decisions.map((d) => `• ${d}`) : [`• 명시적인 결정 사항이 감지되지 않았습니다 (필요시 직접 수정)`]),
+            ``,
+            `【후속 조치 (Action Items)】`,
+            ...(actions.length ? actions.map((a) => `☐ ${a}`) : [`☐ 논의된 일정 및 안건 후속 확인`])
+          ].join("\n");
+        }
+
+        if (summaryLang === "zh") {
+          const overview = `本次会议记录于 ${dateStr}（共 ${count} 条发言），主要围绕以下内容展开讨论：${discussion.slice(0, 2).join("；")}。`;
+          if (summaryStyle === "bullets") {
+            return [
+              `【核心重点速览】`,
+              ...discussion.map((d) => `• ${d}`),
+              ``,
+              `【待办跟进清单】`,
+              ...(actions.length ? actions.map((a) => `☐ ${a}`) : [`☐ 整理并向与会人员发送会议纪要`])
+            ].join("\n");
+          }
+          if (summaryStyle === "client") {
+            return [
+              `【客户／项目核心需求】`,
+              ...discussion.map((d) => `• ${d}`),
+              ``,
+              `【报价、时间表与确认要点】`,
+              ...(decisions.length ? decisions.map((d) => `• ${d}`) : [`• 待各方进一步确认最终方案与报价`]),
+              ``,
+              `【下一步跟进计划】`,
+              ...(actions.length ? actions.map((a) => `☐ ${a}`) : [`☐ 跟进并确认会议日程及方案细节`])
+            ].join("\n");
+          }
+          return [
+            `【会议摘要】`,
+            overview,
+            ``,
+            `【讨论重点】`,
+            ...discussion.map((d, idx) => `${idx + 1}. ${d}`),
+            ``,
+            `【决议事项】`,
+            ...(decisions.length ? decisions.map((d) => `• ${d}`) : [`• 暂未检测到明确决议字眼（可直接在此手动补充）`]),
+            ``,
+            `【跟进事项 (Action Items)】`,
+            ...(actions.length ? actions.map((a) => `☐ ${a}`) : [`☐ 跟进上述讨论事项并确认时间表`])
+          ].join("\n");
+        }
+
+        // Default: Cantonese ("yue") or Standard Traditional Chinese ("zh-TW")
+        const isCantonese = summaryLang === "yue";
+        const overview = isCantonese
+          ? `是次會議紀錄於 ${dateStr}（共 ${count} 句對話），主要圍繞以下內容進行討論：${discussion.slice(0, 2).join("；")}。`
+          : `本次會議紀錄於 ${dateStr}（共 ${count} 句對話），主要圍繞以下內容進行討論：${discussion.slice(0, 2).join("；")}。`;
+
+        if (summaryStyle === "bullets") {
+          return [
+            `【核心重點速覽】`,
+            ...discussion.map((d) => `• ${d}`),
+            ``,
+            `【待辦跟進清單】`,
+            ...(actions.length ? actions.map((a) => `☐ ${a}`) : [isCantonese ? `☐ 整理並向與會同事發送會議重點` : `☐ 整理並向與會人員發送會議重點`])
+          ].join("\n");
+        }
+
+        if (summaryStyle === "client") {
+          return [
+            `【客戶／項目核心需求】`,
+            ...discussion.map((d) => `• ${d}`),
+            ``,
+            `【報價、時間表與確認要點】`,
+            ...(decisions.length ? decisions.map((d) => `• ${d}`) : [isCantonese ? `• 有待各方進一步確認最終方案同報價` : `• 有待各方進一步確認最終方案與報價`]),
+            ``,
+            `【下一步跟進計劃】`,
+            ...(actions.length ? actions.map((a) => `☐ ${a}`) : [isCantonese ? `☐ 跟進並確認會議日程及方案細節` : `☐ 跟進並確認會議日程及方案細節`])
+          ].join("\n");
+        }
+
+        return [
+          `【會議摘要】`,
+          overview,
+          ``,
+          `【討論重點】`,
+          ...discussion.map((d, idx) => `${idx + 1}. ${d}`),
+          ``,
+          `【決議事項】`,
+          ...(decisions.length ? decisions.map((d) => `• ${d}`) : [isCantonese ? `• 暫未偵測到明確決議字眼（可直接喺度手動補充）` : `• 暫未偵測到明確決議字眼（可直接在此手動補充）`]),
+          ``,
+          `【跟進事項 (Action Items)】`,
+          ...(actions.length ? actions.map((a) => `☐ ${a}`) : [isCantonese ? `☐ 跟進以上討論事項並確認時間表` : `☐ 跟進以上討論事項並確認時間表`])
+        ].join("\n");
+      }
+
+      async function buildMeetingSummary(forceRefresh = false) {
+        if (state.entries.length === 0) return "";
+        const summaryLang = els.summaryLangSelect.value || "yue";
+        const summaryStyle = els.summaryStyleSelect.value || "standard";
+
+        if (
+          !forceRefresh &&
+          state.lastGeneratedSummary &&
+          state.lastSummaryEntryCount === state.entries.length &&
+          state.lastSummaryLang === summaryLang &&
+          state.lastSummaryStyle === summaryStyle
+        ) {
+          return els.summaryEditableArea.value || state.lastGeneratedSummary;
+        }
+
+        els.summaryLoadingBox.classList.remove("hidden");
+        els.summaryEditorWrapper.classList.add("opacity-50");
+
+        try {
+          let resultText = "";
+          let usedAI = false;
+          if (getEffectiveApiKey()) {
+            try {
+              resultText = await generateSummaryViaGemini(state.entries, summaryLang, summaryStyle);
+              usedAI = true;
+            } catch (_) {
+              resultText = await generateSummaryHeuristic(state.entries, summaryLang, summaryStyle);
+            }
+          } else {
+            resultText = await generateSummaryHeuristic(state.entries, summaryLang, summaryStyle);
+          }
+
+          state.lastGeneratedSummary = resultText;
+          state.lastSummaryEntryCount = state.entries.length;
+          state.lastSummaryLang = summaryLang;
+          state.lastSummaryStyle = summaryStyle;
+
+          els.summaryEditableArea.value = resultText;
+          els.summaryEngineBadge.textContent = usedAI ? "Gemini AI 重點提煉" : "智能重點整理";
+          return resultText;
+        } finally {
+          els.summaryLoadingBox.classList.add("hidden");
+          els.summaryEditorWrapper.classList.remove("opacity-50");
+        }
+      }
+
+      async function openSummaryModal() {
+        if (state.entries.length === 0) {
+          showToast("目前未有會議逐字稿，請先開始說話或輸入對話");
+          return;
+        }
+        els.summaryModalSubtitle.textContent = `已收錄 ${state.entries.length} 句會議對話 · 可自由編輯重點並匯出 TXT 或 Word`;
+        els.summaryModalBackdrop.classList.remove("hidden");
+        await buildMeetingSummary(false);
+      }
+
+      function closeSummaryModal() {
+        els.summaryModalBackdrop.classList.add("hidden");
+      }
+
+      // =====================================================================
+      // EXPORT ENGINE: TXT (.txt) & NATIVE WORD (.docx) GENERATOR
+      // =====================================================================
+      function getExportTimestampSlug() {
+        const now = new Date();
+        const pad = (n) => String(n).padStart(2, "0");
+        return `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}`;
+      }
+
+      function triggerBlobDownload(blob, filename) {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = filename;
+        a.style.display = "none";
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(() => {
+          URL.revokeObjectURL(url);
+          a.remove();
+        }, 1500);
+      }
+
+      function buildPlainTextReport({ includeTranscript = true, summaryText = "" }) {
+        const nowStr = new Date().toLocaleString("zh-HK");
+        const pairStr = getPairLabel(state.spokenLang, state.targetLang);
+        const lines = [
+          "============================================================",
+          "Teams 即時多國語言會議翻譯紀錄",
+          `匯出時間：${nowStr}`,
+          `語言方向：${pairStr}`,
+          `句子總數：${state.entries.length} 句`,
+          "============================================================",
+          ""
+        ];
+
+        if (summaryText && summaryText.trim()) {
+          lines.push("【開會重點內容整理】");
+          lines.push("------------------------------------------------------------");
+          lines.push(summaryText.trim());
+          lines.push("");
+        }
+
+        if (includeTranscript && state.entries.length > 0) {
+          lines.push("【會議翻譯逐字稿】");
+          lines.push("------------------------------------------------------------");
+          state.entries.forEach((entry, index) => {
+            lines.push(`#${index + 1}${entry.timestamp ? ` (${entry.timestamp})` : ""}`);
+            Object.entries(entry.translations).forEach(([code, txt]) => {
+              const badge = TARGET_LANGUAGES[code]?.badgeName || code;
+              lines.push(`[${badge}] ${txt}`);
+            });
+            if (state.showBoth) {
+              lines.push(`[原文] ${entry.original}`);
+            }
+            lines.push("");
+          });
+        }
+
+        return lines.join("\r\n");
+      }
+
+      // Pure JS Zero-Dependency OOXML (.docx) Builder (Standard PKZIP STORE + WordprocessingML)
+      const CRC32_TABLE = (() => {
+        const table = new Uint32Array(256);
+        for (let i = 0; i < 256; i++) {
+          let c = i;
+          for (let k = 0; k < 8; k++) {
+            c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+          }
+          table[i] = c >>> 0;
+        }
+        return table;
+      })();
+
+      function computeCrc32(bytes) {
+        let crc = 0xFFFFFFFF;
+        for (let i = 0; i < bytes.length; i++) {
+          crc = CRC32_TABLE[(crc ^ bytes[i]) & 0xFF] ^ (crc >>> 8);
+        }
+        return (crc ^ 0xFFFFFFFF) >>> 0;
+      }
+
+      function escapeXmlText(str) {
+        return String(str || "")
+          .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, "")
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&apos;");
+      }
+
+      function createZipStoreBlob(files, mimeType) {
+        const encoder = new TextEncoder();
+        const localParts = [];
+        const centralParts = [];
+        let offset = 0;
+
+        const now = new Date();
+        const dosTime = ((now.getHours() & 0x1F) << 11) | ((now.getMinutes() & 0x3F) << 5) | ((Math.floor(now.getSeconds() / 2)) & 0x1F);
+        const dosDate = (((Math.max(1980, now.getFullYear()) - 1980) & 0x7F) << 9) | (((now.getMonth() + 1) & 0x0F) << 5) | (now.getDate() & 0x1F);
+
+        for (const file of files) {
+          const nameBytes = encoder.encode(file.name);
+          const dataBytes = typeof file.content === "string" ? encoder.encode(file.content) : file.content;
+          const crc = computeCrc32(dataBytes);
+          const size = dataBytes.length;
+
+          // Local file header (30 bytes + nameBytes)
+          const localHeader = new Uint8Array(30 + nameBytes.length);
+          const lv = new DataView(localHeader.buffer);
+          lv.setUint32(0, 0x04034b50, true);
+          lv.setUint16(4, 20, true);
+          lv.setUint16(6, 0x0800, true); // UTF-8 filename flag
+          lv.setUint16(8, 0, true);      // STORE (no compression)
+          lv.setUint16(10, dosTime, true);
+          lv.setUint16(12, dosDate, true);
+          lv.setUint32(14, crc, true);
+          lv.setUint32(18, size, true);
+          lv.setUint32(22, size, true);
+          lv.setUint16(26, nameBytes.length, true);
+          lv.setUint16(28, 0, true);
+          localHeader.set(nameBytes, 30);
+
+          localParts.push(localHeader, dataBytes);
+
+          // Central directory header (46 bytes + nameBytes)
+          const centralHeader = new Uint8Array(46 + nameBytes.length);
+          const cv = new DataView(centralHeader.buffer);
+          cv.setUint32(0, 0x02014b50, true);
+          cv.setUint16(4, 20, true);
+          cv.setUint16(6, 20, true);
+          cv.setUint16(8, 0x0800, true);
+          cv.setUint16(10, 0, true);
+          cv.setUint16(12, dosTime, true);
+          cv.setUint16(14, dosDate, true);
+          cv.setUint32(16, crc, true);
+          cv.setUint32(20, size, true);
+          cv.setUint32(24, size, true);
+          cv.setUint16(28, nameBytes.length, true);
+          cv.setUint16(30, 0, true);
+          cv.setUint16(32, 0, true);
+          cv.setUint16(34, 0, true);
+          cv.setUint16(36, 0, true);
+          cv.setUint32(38, 0, true);
+          cv.setUint32(42, offset, true);
+          centralHeader.set(nameBytes, 46);
+
+          centralParts.push(centralHeader);
+          offset += localHeader.length + size;
+        }
+
+        const centralOffset = offset;
+        let centralSize = 0;
+        for (const cp of centralParts) centralSize += cp.length;
+
+        const eocd = new Uint8Array(22);
+        const ev = new DataView(eocd.buffer);
+        ev.setUint32(0, 0x06054b50, true);
+        ev.setUint16(4, 0, true);
+        ev.setUint16(6, 0, true);
+        ev.setUint16(8, files.length, true);
+        ev.setUint16(10, files.length, true);
+        ev.setUint32(12, centralSize, true);
+        ev.setUint32(16, centralOffset, true);
+        ev.setUint16(20, 0, true);
+
+        return new Blob([...localParts, ...centralParts, eocd], { type: mimeType });
+      }
+
+      function buildWordParagraphXml(runs, opts = {}) {
+        const spaceBefore = opts.spaceBefore ?? 0;
+        const spaceAfter = opts.spaceAfter ?? 120;
+        const lineSpacing = opts.lineSpacing ?? 300;
+        const shadingFill = opts.shadingFill ? `<w:shd w:val="clear" w:color="auto" w:fill="${opts.shadingFill}"/>` : "";
+        const bottomBorder = opts.bottomBorder ? `<w:pBdr><w:bottom w:val="single" w:sz="4" w:space="6" w:color="E0E0E0"/></w:pBdr>` : "";
+        const leftBorder = opts.leftBorder ? `<w:pBdr><w:left w:val="single" w:sz="18" w:space="10" w:color="5B5FC7"/></w:pBdr>` : "";
+
+        const runsXml = runs.map((r) => {
+          const boldXml = r.bold ? "<w:b/><w:bCs/>" : "";
+          const italicXml = r.italic ? "<w:i/><w:iCs/>" : "";
+          const colorXml = r.color ? `<w:color w:val="${r.color}"/>` : `<w:color w:val="242424"/>`;
+          const sizeHalfPts = (r.sizePt || 11) * 2;
+          return `<w:r><w:rPr><w:rFonts w:ascii="Segoe UI" w:hAnsi="Segoe UI" w:eastAsia="Microsoft JhengHei"/>${boldXml}${italicXml}${colorXml}<w:sz w:val="${sizeHalfPts}"/><w:szCs w:val="${sizeHalfPts}"/></w:rPr><w:t xml:space="preserve">${escapeXmlText(r.text)}</w:t></w:r>`;
+        }).join("");
+
+        return `<w:p><w:pPr><w:spacing w:before="${spaceBefore}" w:after="${spaceAfter}" w:line="${lineSpacing}" w:lineRule="auto"/>${shadingFill}${bottomBorder}${leftBorder}</w:pPr>${runsXml}</w:p>`;
+      }
+
+      function buildDocxBlob({ includeTranscript = true, summaryText = "" }) {
+        const nowStr = new Date().toLocaleString("zh-HK");
+        const pairStr = getPairLabel(state.spokenLang, state.targetLang);
+        const bodyParagraphs = [];
+
+        // Document Header
+        bodyParagraphs.push(buildWordParagraphXml(
+          [{ text: "Teams 即時多國語言會議翻譯紀錄", bold: true, color: "5B5FC7", sizePt: 18 }],
+          { spaceBefore: 0, spaceAfter: 80, lineSpacing: 340 }
+        ));
+
+        bodyParagraphs.push(buildWordParagraphXml(
+          [{ text: `匯出時間：${nowStr}   |   語言方向：${pairStr}   |   句子總數：${state.entries.length} 句`, color: "616161", sizePt: 9.5 }],
+          { spaceBefore: 0, spaceAfter: 220, shadingFill: "F5F6FA", bottomBorder: true }
+        ));
+
+        // Meeting Key Points Section
+        if (summaryText && summaryText.trim()) {
+          bodyParagraphs.push(buildWordParagraphXml(
+            [{ text: "開會重點內容整理", bold: true, color: "5B5FC7", sizePt: 14 }],
+            { spaceBefore: 120, spaceAfter: 100, leftBorder: true }
+          ));
+
+          const summaryLines = summaryText.trim().split(/\r?\n/);
+          for (const line of summaryLines) {
+            const trimmed = line.trim();
+            if (!trimmed) {
+              bodyParagraphs.push(buildWordParagraphXml([{ text: "", sizePt: 8 }], { spaceAfter: 40 }));
+              continue;
+            }
+            const isSectionHeader = /^([【\[].+[】\]])$/.test(trimmed);
+            bodyParagraphs.push(buildWordParagraphXml(
+              [{
+                text: trimmed,
+                bold: isSectionHeader,
+                color: isSectionHeader ? "242424" : "333333",
+                sizePt: isSectionHeader ? 11.5 : 10.5
+              }],
+              {
+                spaceBefore: isSectionHeader ? 100 : 0,
+                spaceAfter: 60,
+                shadingFill: isSectionHeader ? "EEF0FC" : undefined
+              }
+            ));
+          }
+
+          bodyParagraphs.push(buildWordParagraphXml([{ text: "", sizePt: 10 }], { spaceAfter: 160, bottomBorder: true }));
+        }
+
+        // Transcript Entries Section
+        if (includeTranscript && state.entries.length > 0) {
+          bodyParagraphs.push(buildWordParagraphXml(
+            [{ text: "會議翻譯逐字稿", bold: true, color: "5B5FC7", sizePt: 14 }],
+            { spaceBefore: 120, spaceAfter: 120, leftBorder: true }
+          ));
+
+          state.entries.forEach((entry, index) => {
+            const transEntries = Object.entries(entry.translations);
+            transEntries.forEach(([code, txt], tIdx) => {
+              const badge = TARGET_LANGUAGES[code]?.badgeName || code;
+              const prefix = tIdx === 0 ? `#${index + 1} [${badge}] ` : `[${badge}] `;
+              const isLastLine = !state.showBoth && tIdx === transEntries.length - 1;
+              bodyParagraphs.push(buildWordParagraphXml(
+                [
+                  { text: prefix, bold: true, color: "5B5FC7", sizePt: 11 },
+                  { text: txt, bold: false, color: "242424", sizePt: 11.5 }
+                ],
+                {
+                  spaceBefore: tIdx === 0 ? 80 : 0,
+                  spaceAfter: isLastLine ? 120 : 40,
+                  bottomBorder: isLastLine
+                }
+              ));
+            });
+
+            if (state.showBoth) {
+              bodyParagraphs.push(buildWordParagraphXml(
+                [
+                  { text: "原文：", bold: true, color: "616161", sizePt: 9.5 },
+                  { text: entry.original, italic: true, color: "616161", sizePt: 10 }
+                ],
+                { spaceBefore: 0, spaceAfter: 120, bottomBorder: true }
+              ));
+            }
+          });
+        }
+
+        const contentTypesXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+</Types>`;
+
+        const rootRelsXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>
+</Relationships>`;
+
+        const documentXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:body>
+    ${bodyParagraphs.join("\n    ")}
+    <w:sectPr>
+      <w:pgSz w:w="11906" w:h="16838"/>
+      <w:pgMar w:top="1134" w:right="1134" w:bottom="1134" w:left="1134" w:header="708" w:footer="708" w:gutter="0"/>
+    </w:sectPr>
+  </w:body>
+</w:document>`;
+
+        return createZipStoreBlob(
+          [
+            { name: "[Content_Types].xml", content: contentTypesXml },
+            { name: "_rels/.rels", content: rootRelsXml },
+            { name: "word/document.xml", content: documentXml }
+          ],
+          "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        );
+      }
+
+      async function handleExportAction({ format, includeSummary, includeTranscript }) {
+        toggleExportPopover(false);
+        if (state.entries.length === 0) {
+          showToast("目前未有可匯出的翻譯內容，請先開始說話或輸入對話");
+          return;
+        }
+
+        let summaryText = "";
+        if (includeSummary) {
+          showToast("正在整理開會重點並準備匯出檔案...");
+          summaryText = await buildMeetingSummary(false);
+        }
+
+        const slug = getExportTimestampSlug();
+        const baseName = includeSummary && includeTranscript
+          ? `Teams_開會重點及翻譯紀錄_${slug}`
+          : includeSummary
+            ? `Teams_開會重點整理_${slug}`
+            : `Teams_即時翻譯逐字稿_${slug}`;
+
+        if (format === "txt") {
+          const txtContent = buildPlainTextReport({ includeTranscript, summaryText });
+          // Prepend UTF-8 BOM (\uFEFF) so Windows/Mac text editors render CJK cleanly
+          const blob = new Blob(["\uFEFF" + txtContent], { type: "text/plain;charset=utf-8" });
+          triggerBlobDownload(blob, `${baseName}.txt`);
+          showToast(`已成功匯出 ${baseName}.txt`);
+        } else {
+          const docxBlob = buildDocxBlob({ includeTranscript, summaryText });
+          triggerBlobDownload(docxBlob, `${baseName}.docx`);
+          showToast(`已成功匯出 Word 文件 ${baseName}.docx`);
+        }
+      }
+
+      // =====================================================================
+      // POP-UP & FLOATING OVERLAY WINDOW
+      // =====================================================================
       function updatePopupButtonVisualState() {
-        els.popupWindowBtn.className = state.popupMode !== "none" ? "inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-semibold text-white bg-teams-primary hover:bg-teams-primaryHover border border-teams-primary focus:outline-none focus:ring-2 focus:ring-teams-primary/40 transition" : "inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-semibold text-teams-primary bg-teams-primaryLight hover:bg-teams-primary hover:text-white border border-teams-primary/30 focus:outline-none focus:ring-2 focus:ring-teams-primary/40 transition";
+        els.popupWindowBtn.className = state.popupMode !== "none" ? "inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-white bg-teams-primary hover:bg-teams-primaryHover border border-teams-primary focus:outline-none focus:ring-2 focus:ring-teams-primary/40 transition" : "inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-teams-primary bg-teams-primaryLight hover:bg-teams-primary hover:text-white border border-teams-primary/30 focus:outline-none focus:ring-2 focus:ring-teams-primary/40 transition";
       }
 
       function buildExternalPopupHTML() {
@@ -1239,16 +2282,15 @@
         }
         state.speechSupported = true; teardownRecognition();
         const sessionId = ++state.recognitionSessionId, activeLang = state.spokenLang, recognition = new SpeechRecognition();
-        // 追蹤當前連續工作階段已送出翻譯的句子索引，避免停頓斷句時需要重啟麥克風
         const committedSegmentIndices = new Set();
 
         if (activeLang !== "auto") {
           recognition.lang = activeLang;
         }
         recognition.continuous = true; recognition.interimResults = true; recognition.maxAlternatives = 1;
-        
+
         recognition.onstart = () => { if (sessionId === state.recognitionSessionId) updateRecordingVisualState(true); };
-        
+
         recognition.onresult = (event) => {
           if (sessionId !== state.recognitionSessionId) return;
           let finalizedChunk = "", interimChunk = "";
@@ -1284,7 +2326,7 @@
             }, 1400);
           }
         };
-        
+
         recognition.onerror = (event) => {
           if (sessionId !== state.recognitionSessionId) return;
           if (event.error === "no-speech" || event.error === "aborted") return;
@@ -1295,12 +2337,11 @@
             els.micFallbackBanner.classList.remove("hidden"); if (event.error !== "language-not-supported") showToast("麥克風權限被拒絕，無法開始錄音");
           }
         };
-        
+
         recognition.onend = () => {
           if (sessionId !== state.recognitionSessionId) return;
           const leftover = state.interimBuffer.trim();
           if (leftover) commitRecognizedSentence(leftover);
-          // 絕不在背景自動重啟麥克風，避免本機檔案 (file://) 無限彈出權限視窗
           const wasRecording = state.isRecording;
           state.isRecording = false;
           state.recognition = null;
@@ -1310,7 +2351,7 @@
             showToast("語音聆聽已停止，如需繼續請按「開始說話」");
           }
         };
-        
+
         state.recognition = recognition;
         try { recognition.start(); } catch (_) { state.isRecording = false; updateRecordingVisualState(false); showToast("無法啟動麥克風，請再試一次"); }
       }
@@ -1361,18 +2402,563 @@
           return;
         }
         clearTimeout(state.clearTimer); state.clearPending = false; els.clearBtnLabel.textContent = "清除"; els.clearTranscriptBtn.classList.remove("bg-[#FDF2F4]", "text-teams-danger");
-        state.entries = []; renderTranscriptFeed(); showToast("已清除所有逐字稿");
+        state.entries = [];
+        state.lastGeneratedSummary = "";
+        state.lastSummaryEntryCount = -1;
+        renderTranscriptFeed();
+        showToast("已清除所有逐字稿");
+      }
+
+      // =====================================================================
+      // AUDIO RECORDING & CLIENT-SIDE MP3 ENCODING / EXPORT ENGINE
+      // =====================================================================
+      function formatDurationMMSS(ms) {
+        const totalSec = Math.max(0, Math.floor(ms / 1000));
+        const mins = Math.floor(totalSec / 60);
+        const secs = totalSec % 60;
+        return `${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
+      }
+
+      function formatFileSize(bytes) {
+        if (bytes < 1024) return `${bytes} B`;
+        if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+        return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+      }
+
+      function encodeWavBlobFromInt16Chunks(chunks, sampleRate) {
+        let totalSamples = 0;
+        for (const c of chunks) totalSamples += c.length;
+        const dataBytes = totalSamples * 2;
+        const buffer = new ArrayBuffer(44 + dataBytes);
+        const view = new DataView(buffer);
+        const writeStr = (offset, str) => {
+          for (let i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i));
+        };
+        writeStr(0, "RIFF");
+        view.setUint32(4, 36 + dataBytes, true);
+        writeStr(8, "WAVE");
+        writeStr(12, "fmt ");
+        view.setUint32(16, 16, true);
+        view.setUint16(20, 1, true);
+        view.setUint16(22, 1, true);
+        view.setUint32(24, sampleRate, true);
+        view.setUint32(28, sampleRate * 2, true);
+        view.setUint16(32, 2, true);
+        view.setUint16(34, 16, true);
+        writeStr(36, "data");
+        view.setUint32(40, dataBytes, true);
+        let offset = 44;
+        for (const chunk of chunks) {
+          for (let i = 0; i < chunk.length; i++, offset += 2) {
+            view.setInt16(offset, chunk[i], true);
+          }
+        }
+        return new Blob([buffer], { type: "audio/wav" });
+      }
+
+      function updateAudioRecorderUI() {
+        const rec = state.audioRec;
+        const timeStr = formatDurationMMSS(rec.elapsedMs);
+        els.recTimerDisplay.textContent = timeStr;
+
+        if (rec.isRecording && !rec.isPaused) {
+          els.headerAudioRecBtn.className = "inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-white bg-teams-danger hover:opacity-95 border border-teams-danger shadow-2xs focus:outline-none focus:ring-2 focus:ring-teams-danger/40 transition";
+          els.headerRecDot.className = "w-2 h-2 rounded-full bg-white animate-ping shrink-0";
+          els.headerRecLabel.textContent = `錄音 ${timeStr}`;
+
+          els.audioRecorderPanel.classList.remove("bg-[#FAFAFA]", "border-teams-border");
+          els.audioRecorderPanel.classList.add("bg-[#FFF9FA]", "border-[#F3D2D8]");
+          els.recPanelBadge.className = "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-teams-danger text-white";
+          els.recPanelDot.className = "w-2 h-2 rounded-full bg-white animate-ping";
+          els.recPanelStatusText.textContent = "正在錄音";
+
+          els.recStartResumeBtn.classList.add("hidden");
+          els.recPauseBtn.classList.remove("hidden");
+          els.recPauseBtn.disabled = false;
+          els.recStopSaveBtn.classList.remove("hidden");
+          els.recStopSaveBtn.disabled = false;
+        } else if (rec.isRecording && rec.isPaused) {
+          els.headerAudioRecBtn.className = "inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-amber-800 bg-amber-100 hover:bg-amber-200 border border-amber-300 focus:outline-none focus:ring-2 focus:ring-amber-400/40 transition";
+          els.headerRecDot.className = "w-2 h-2 rounded-full bg-amber-600 shrink-0";
+          els.headerRecLabel.textContent = `暫停 ${timeStr}`;
+
+          els.recPanelBadge.className = "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-800 border border-amber-300";
+          els.recPanelDot.className = "w-2 h-2 rounded-full bg-amber-600";
+          els.recPanelStatusText.textContent = "錄音已暫停";
+
+          els.recStartResumeLabel.textContent = "繼續錄音";
+          els.recStartResumeBtn.classList.remove("hidden");
+          els.recPauseBtn.classList.add("hidden");
+          els.recStopSaveBtn.classList.remove("hidden");
+          els.recStopSaveBtn.disabled = false;
+          resetEqBars();
+        } else {
+          els.headerAudioRecBtn.className = "inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-teams-danger bg-[#FDF2F4] hover:bg-teams-danger hover:text-white border border-[#F3C6CE] focus:outline-none focus:ring-2 focus:ring-teams-danger/40 transition";
+          els.headerRecDot.className = "w-2 h-2 rounded-full bg-teams-danger shrink-0";
+          els.headerRecLabel.textContent = state.recordings.length > 0 ? `錄音 (${state.recordings.length})` : "錄音";
+
+          els.audioRecorderPanel.classList.remove("bg-[#FFF9FA]", "border-[#F3D2D8]");
+          els.audioRecorderPanel.classList.add("bg-[#FAFAFA]", "border-teams-border");
+          els.recPanelBadge.className = "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-white text-teams-muted border border-teams-border";
+          els.recPanelDot.className = "w-2 h-2 rounded-full bg-teams-danger";
+          els.recPanelStatusText.textContent = state.recordings.length > 0 ? `已儲存 ${state.recordings.length} 段錄音` : "錄音就緒";
+
+          els.recStartResumeLabel.textContent = state.recordings.length > 0 ? "錄製新一段" : "開始錄音";
+          els.recStartResumeBtn.classList.remove("hidden");
+          els.recPauseBtn.classList.add("hidden");
+          els.recStopSaveBtn.classList.add("hidden");
+          resetEqBars();
+        }
+
+        if (state.recordings.length > 0) {
+          const latest = state.recordings[0];
+          els.exportMp3Sublabel.textContent = `下載「${latest.title}.${latest.ext}」(${latest.durationText})`;
+        } else {
+          els.exportMp3Sublabel.textContent = "下載最新錄製的 MP3 音訊檔";
+        }
+      }
+
+      function resetEqBars() {
+        const bars = els.recLevelBars.querySelectorAll(".rec-eq-bar");
+        bars.forEach((bar) => {
+          bar.style.height = "4px";
+        });
+      }
+
+      function startEqAnimationLoop() {
+        const rec = state.audioRec;
+        if (!rec.analyserNode) return;
+        const dataArray = new Uint8Array(rec.analyserNode.frequencyBinCount);
+        const bars = els.recLevelBars.querySelectorAll(".rec-eq-bar");
+
+        const renderFrame = () => {
+          if (!rec.isRecording || rec.isPaused || !rec.analyserNode) {
+            resetEqBars();
+            return;
+          }
+          rec.analyserNode.getByteFrequencyData(dataArray);
+          bars.forEach((bar, idx) => {
+            const val = dataArray[idx * 2] || 0;
+            const heightPx = Math.max(4, Math.min(18, Math.round((val / 255) * 18)));
+            bar.style.height = `${heightPx}px`;
+          });
+          rec.rafId = requestAnimationFrame(renderFrame);
+        };
+        cancelAnimationFrame(rec.rafId);
+        rec.rafId = requestAnimationFrame(renderFrame);
+      }
+
+      function cleanupAudioNodes() {
+        const rec = state.audioRec;
+        clearInterval(rec.timerInterval);
+        cancelAnimationFrame(rec.rafId);
+        rec.timerInterval = null;
+        rec.rafId = null;
+
+        try { if (rec.processorNode) { rec.processorNode.onaudioprocess = null; rec.processorNode.disconnect(); } } catch (_) {}
+        try { if (rec.analyserNode) rec.analyserNode.disconnect(); } catch (_) {}
+        try { if (rec.sourceNode) rec.sourceNode.disconnect(); } catch (_) {}
+        try { if (rec.zeroGainNode) rec.zeroGainNode.disconnect(); } catch (_) {}
+        try { if (rec.audioCtx && rec.audioCtx.state !== "closed") rec.audioCtx.close(); } catch (_) {}
+        try { if (rec.stream) rec.stream.getTracks().forEach((t) => t.stop()); } catch (_) {}
+
+        rec.processorNode = null;
+        rec.analyserNode = null;
+        rec.sourceNode = null;
+        rec.zeroGainNode = null;
+        rec.audioCtx = null;
+        rec.stream = null;
+      }
+
+      async function startOrResumeAudioRecording() {
+        const rec = state.audioRec;
+        els.audioRecorderPanel.classList.remove("hidden");
+
+        // Resume if currently paused
+        if (rec.isRecording && rec.isPaused) {
+          if (rec.audioCtx && rec.audioCtx.state === "suspended") {
+            await rec.audioCtx.resume();
+          }
+          rec.isPaused = false;
+          rec.lastTickAt = Date.now();
+          updateAudioRecorderUI();
+          startEqAnimationLoop();
+          showToast("已繼續錄音");
+          return;
+        }
+
+        if (rec.isRecording) return;
+
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+          showToast("此瀏覽器不支援麥克風錄音功能，請使用 Chrome / Edge / Safari");
+          return;
+        }
+
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({
+            audio: {
+              echoCancellation: true,
+              noiseSuppression: true,
+              autoGainControl: true
+            }
+          });
+
+          const AudioCtx = window.AudioContext || window.webkitAudioContext;
+          const audioCtx = new AudioCtx();
+          if (audioCtx.state === "suspended") {
+            await audioCtx.resume();
+          }
+
+          const sampleRate = audioCtx.sampleRate || 44100;
+          let mp3Encoder = null;
+          if (window.lamejs && typeof window.lamejs.Mp3Encoder === "function") {
+            try {
+              mp3Encoder = new window.lamejs.Mp3Encoder(1, sampleRate, 128);
+            } catch (_) {
+              mp3Encoder = null;
+            }
+          }
+
+          const sourceNode = audioCtx.createMediaStreamSource(stream);
+          const analyserNode = audioCtx.createAnalyser();
+          analyserNode.fftSize = 64;
+          sourceNode.connect(analyserNode);
+
+          const processorNode = audioCtx.createScriptProcessor(4096, 1, 1);
+          const zeroGainNode = audioCtx.createGain();
+          zeroGainNode.gain.value = 0;
+
+          rec.stream = stream;
+          rec.audioCtx = audioCtx;
+          rec.sourceNode = sourceNode;
+          rec.analyserNode = analyserNode;
+          rec.processorNode = processorNode;
+          rec.zeroGainNode = zeroGainNode;
+          rec.sampleRate = sampleRate;
+          rec.mp3Encoder = mp3Encoder;
+          rec.mp3Buffers = [];
+          rec.rawPcmChunks = [];
+          rec.elapsedMs = 0;
+          rec.lastTickAt = Date.now();
+          rec.isRecording = true;
+          rec.isPaused = false;
+
+          processorNode.onaudioprocess = (event) => {
+            if (!rec.isRecording || rec.isPaused) return;
+            const input = event.inputBuffer.getChannelData(0);
+            const int16 = new Int16Array(input.length);
+            for (let i = 0; i < input.length; i++) {
+              const s = Math.max(-1, Math.min(1, input[i]));
+              int16[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+            }
+            if (rec.mp3Encoder) {
+              const mp3buf = rec.mp3Encoder.encodeBuffer(int16);
+              if (mp3buf && mp3buf.length > 0) {
+                rec.mp3Buffers.push(new Int8Array(mp3buf));
+              }
+            } else {
+              rec.rawPcmChunks.push(int16);
+            }
+          };
+
+          sourceNode.connect(processorNode);
+          processorNode.connect(zeroGainNode);
+          zeroGainNode.connect(audioCtx.destination);
+
+          clearInterval(rec.timerInterval);
+          rec.timerInterval = setInterval(() => {
+            if (rec.isRecording && !rec.isPaused) {
+              const now = Date.now();
+              rec.elapsedMs += now - rec.lastTickAt;
+              rec.lastTickAt = now;
+              els.recTimerDisplay.textContent = formatDurationMMSS(rec.elapsedMs);
+              els.headerRecLabel.textContent = `錄音 ${formatDurationMMSS(rec.elapsedMs)}`;
+            }
+          }, 250);
+
+          updateAudioRecorderUI();
+          startEqAnimationLoop();
+          showToast(mp3Encoder ? "開始錄音（即時 MP3 編碼中）" : "開始錄音");
+        } catch (err) {
+          cleanupAudioNodes();
+          rec.isRecording = false;
+          rec.isPaused = false;
+          updateAudioRecorderUI();
+          showToast("無法存取麥克風進行錄音，請確認已允許麥克風權限");
+        }
+      }
+
+      function pauseAudioRecording() {
+        const rec = state.audioRec;
+        if (!rec.isRecording || rec.isPaused) return;
+        const now = Date.now();
+        rec.elapsedMs += now - rec.lastTickAt;
+        rec.isPaused = true;
+        updateAudioRecorderUI();
+        showToast("已暫停錄音");
+      }
+
+      function stopAndSaveAudioRecording() {
+        const rec = state.audioRec;
+        if (!rec.isRecording) return;
+
+        if (!rec.isPaused) {
+          rec.elapsedMs += Date.now() - rec.lastTickAt;
+        }
+        const finalDurationMs = Math.max(1000, rec.elapsedMs);
+        const encoder = rec.mp3Encoder;
+        const buffers = rec.mp3Buffers;
+        const pcmChunks = rec.rawPcmChunks;
+        const sampleRate = rec.sampleRate;
+
+        rec.isRecording = false;
+        rec.isPaused = false;
+        cleanupAudioNodes();
+
+        let blob, ext, formatLabel;
+        if (encoder) {
+          try {
+            const flushBuf = encoder.flush();
+            if (flushBuf && flushBuf.length > 0) {
+              buffers.push(new Int8Array(flushBuf));
+            }
+          } catch (_) {}
+          blob = new Blob(buffers, { type: "audio/mp3" });
+          ext = "mp3";
+          formatLabel = "MP3 · 128kbps";
+        } else {
+          blob = encodeWavBlobFromInt16Chunks(pcmChunks, sampleRate);
+          ext = "wav";
+          formatLabel = "WAV · 16-bit";
+        }
+
+        rec.mp3Encoder = null;
+        rec.mp3Buffers = [];
+        rec.rawPcmChunks = [];
+        rec.elapsedMs = 0;
+
+        const url = URL.createObjectURL(blob);
+        const slug = getExportTimestampSlug();
+        const clipIndex = state.recordings.length + 1;
+        const defaultTitle = `Teams_會議錄音_${slug}_#${clipIndex}`;
+
+        state.recordings.unshift({
+          id: `rec_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+          title: defaultTitle,
+          createdAt: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+          durationText: formatDurationMMSS(finalDurationMs),
+          sizeText: formatFileSize(blob.size),
+          blob,
+          url,
+          ext,
+          formatLabel
+        });
+
+        renderRecordingsList();
+        updateAudioRecorderUI();
+        showToast(`錄音已完成並轉成 ${ext.toUpperCase()}！可試聽或直接匯出`);
+      }
+
+      function downloadRecordingClip(clipId) {
+        const clip = state.recordings.find((r) => r.id === clipId);
+        if (!clip) return;
+        const safeName = (clip.title || "Teams_會議錄音").trim().replace(/[\/:*?"<>|]/g, "_") || "Teams_會議錄音";
+        triggerBlobDownload(clip.blob, `${safeName}.${clip.ext}`);
+        showToast(`已匯出 ${safeName}.${clip.ext}`);
+      }
+
+      function deleteRecordingClip(clipId) {
+        const idx = state.recordings.findIndex((r) => r.id === clipId);
+        if (idx === -1) return;
+        const [removed] = state.recordings.splice(idx, 1);
+        if (removed && removed.url) {
+          try { URL.revokeObjectURL(removed.url); } catch (_) {}
+        }
+        renderRecordingsList();
+        updateAudioRecorderUI();
+        showToast("已刪除該段錄音");
+      }
+
+      function renderRecordingsList() {
+        if (state.recordings.length === 0) {
+          els.recordingsListWrapper.classList.add("hidden");
+          els.recordingsListWrapper.innerHTML = "";
+          return;
+        }
+        els.recordingsListWrapper.classList.remove("hidden");
+        els.recordingsListWrapper.innerHTML = state.recordings.map((clip) => {
+          return `
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 rounded-xl bg-white border border-teams-border px-3 py-2 shadow-2xs">
+              <div class="flex items-center gap-2 min-w-0 flex-1">
+                <span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-[#FDF2F4] text-teams-danger border border-[#F3C6CE] shrink-0">
+                  ${escapeHtml(clip.ext.toUpperCase())}
+                </span>
+                <input
+                  type="text"
+                  data-rec-rename-id="${escapeHtml(clip.id)}"
+                  value="${escapeHtml(clip.title)}"
+                  aria-label="錄音檔案名稱"
+                  class="min-w-0 flex-1 text-xs font-semibold text-teams-text bg-transparent border-b border-transparent hover:border-teams-border focus:border-teams-primary focus:outline-none px-1 py-0.5 truncate"
+                />
+                <span class="text-[11px] text-teams-muted whitespace-nowrap shrink-0">
+                  ${escapeHtml(clip.durationText)} · ${escapeHtml(clip.sizeText)}
+                </span>
+              </div>
+
+              <div class="flex items-center gap-1.5 shrink-0">
+                <audio controls preload="metadata" src="${clip.url}" class="h-7 w-[170px] sm:w-[190px]"></audio>
+                <button
+                  type="button"
+                  data-rec-export-id="${escapeHtml(clip.id)}"
+                  class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-white bg-teams-primary hover:bg-teams-primaryHover active:scale-95 transition shrink-0"
+                >
+                  <span>⬇️ 匯出 ${escapeHtml(clip.ext.toUpperCase())}</span>
+                </button>
+                <button
+                  type="button"
+                  data-rec-delete-id="${escapeHtml(clip.id)}"
+                  title="刪除此段錄音"
+                  class="p-1.5 rounded-lg text-teams-muted hover:text-teams-danger hover:bg-[#FDF2F4] transition shrink-0"
+                >
+                  🗑️
+                </button>
+              </div>
+            </div>
+          `;
+        }).join("");
       }
 
       function bindEvents() {
+        // Audio Recorder & MP3 Export Events
+        els.headerAudioRecBtn.addEventListener("click", () => {
+          const isPanelHidden = els.audioRecorderPanel.classList.contains("hidden");
+          els.audioRecorderPanel.classList.remove("hidden");
+          if (!state.audioRec.isRecording && state.recordings.length === 0) {
+            startOrResumeAudioRecording();
+          } else if (isPanelHidden) {
+            // Just revealed existing panel/recording
+          } else if (!state.audioRec.isRecording) {
+            startOrResumeAudioRecording();
+          }
+        });
+        els.recStartResumeBtn.addEventListener("click", startOrResumeAudioRecording);
+        els.recPauseBtn.addEventListener("click", pauseAudioRecording);
+        els.recStopSaveBtn.addEventListener("click", stopAndSaveAudioRecording);
+        els.recClosePanelBtn.addEventListener("click", () => {
+          els.audioRecorderPanel.classList.add("hidden");
+          if (state.audioRec.isRecording) {
+            showToast("已收合面板，背景仍在繼續錄音中");
+          }
+        });
+        els.recordingsListWrapper.addEventListener("click", (e) => {
+          const exportBtn = e.target.closest("[data-rec-export-id]");
+          const deleteBtn = e.target.closest("[data-rec-delete-id]");
+          if (exportBtn) downloadRecordingClip(exportBtn.dataset.recExportId);
+          if (deleteBtn) deleteRecordingClip(deleteBtn.dataset.recDeleteId);
+        });
+        els.recordingsListWrapper.addEventListener("input", (e) => {
+          const renameInput = e.target.closest("[data-rec-rename-id]");
+          if (renameInput) {
+            const clip = state.recordings.find((r) => r.id === renameInput.dataset.recRenameId);
+            if (clip) {
+              clip.title = renameInput.value;
+              updateAudioRecorderUI();
+            }
+          }
+        });
+        els.exportLatestMp3Btn.addEventListener("click", () => {
+          toggleExportPopover(false);
+          if (state.recordings.length > 0) {
+            downloadRecordingClip(state.recordings[0].id);
+          } else {
+            els.audioRecorderPanel.classList.remove("hidden");
+            showToast("尚未有完成嘅錄音檔，請先按「開始錄音」並完成錄製");
+          }
+        });
+
+        // Meeting Summary Modal Events
+        els.summarizeMeetingBtn.addEventListener("click", openSummaryModal);
+        els.closeSummaryModalBtn.addEventListener("click", closeSummaryModal);
+        els.summaryModalBackdrop.addEventListener("click", (e) => {
+          if (e.target === els.summaryModalBackdrop) closeSummaryModal();
+        });
+        document.addEventListener("keydown", (e) => {
+          if (e.key === "Escape") {
+            closeSummaryModal();
+            toggleSettingsPopover(false);
+            toggleExportPopover(false);
+          }
+        });
+        els.regenerateSummaryBtn.addEventListener("click", () => buildMeetingSummary(true));
+        els.summaryLangSelect.addEventListener("change", () => buildMeetingSummary(true));
+        els.summaryStyleSelect.addEventListener("change", () => buildMeetingSummary(true));
+        els.copySummaryBtn.addEventListener("click", () => {
+          const text = els.summaryEditableArea.value.trim();
+          if (!text) return;
+          copyTextToClipboard(text);
+        });
+        els.modalExportSummaryTxtBtn.addEventListener("click", () => {
+          const text = els.summaryEditableArea.value.trim();
+          if (!text) return;
+          const slug = getExportTimestampSlug();
+          const txtContent = buildPlainTextReport({ includeTranscript: false, summaryText: text });
+          triggerBlobDownload(new Blob(["\uFEFF" + txtContent], { type: "text/plain;charset=utf-8" }), `Teams_開會重點整理_${slug}.txt`);
+          showToast("已匯出開會重點 (.txt)");
+        });
+        els.modalExportSummaryWordBtn.addEventListener("click", () => {
+          const text = els.summaryEditableArea.value.trim();
+          if (!text) return;
+          const slug = getExportTimestampSlug();
+          triggerBlobDownload(buildDocxBlob({ includeTranscript: false, summaryText: text }), `Teams_開會重點整理_${slug}.docx`);
+          showToast("已匯出開會重點 Word (.docx)");
+        });
+        els.modalExportFullWordBtn.addEventListener("click", () => {
+          const text = els.summaryEditableArea.value.trim();
+          const slug = getExportTimestampSlug();
+          triggerBlobDownload(buildDocxBlob({ includeTranscript: true, summaryText: text }), `Teams_開會重點及翻譯紀錄_${slug}.docx`);
+          showToast("已匯出開會重點 + 逐字稿 Word (.docx)");
+        });
+
+        // Header Export Dropdown Events
+        els.exportMenuBtn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          toggleExportPopover();
+        });
+        els.exportTxtBtn.addEventListener("click", () => handleExportAction({ format: "txt", includeSummary: false, includeTranscript: true }));
+        els.exportWordBtn.addEventListener("click", () => handleExportAction({ format: "docx", includeSummary: false, includeTranscript: true }));
+        els.exportFullTxtBtn.addEventListener("click", () => handleExportAction({ format: "txt", includeSummary: true, includeTranscript: true }));
+        els.exportFullWordBtn.addEventListener("click", () => handleExportAction({ format: "docx", includeSummary: true, includeTranscript: true }));
+
+        // Popup & Overlay Events
         els.popupWindowBtn.addEventListener("click", openPopupMode);
         els.overlayMicBtn.addEventListener("click", toggleMicrophone);
         els.overlayThemeBtn.addEventListener("click", () => { state.popupDarkTheme = !state.popupDarkTheme; syncPopupView(); });
         els.overlayFontDecBtn.addEventListener("click", () => { state.popupFontSize = Math.max(14, state.popupFontSize - 2); syncPopupView(); });
         els.overlayFontIncBtn.addEventListener("click", () => { state.popupFontSize = Math.min(30, state.popupFontSize + 2); syncPopupView(); });
         els.overlayCloseBtn.addEventListener("click", () => { closePopupMode(); showToast("已關閉懸浮視窗"); });
+
+        // Settings Popover Events
         els.settingsGearBtn.addEventListener("click", (e) => { e.stopPropagation(); toggleSettingsPopover(); });
-        document.addEventListener("click", (e) => { if (!els.settingsPopover.contains(e.target) && !els.settingsGearBtn.contains(e.target)) toggleSettingsPopover(false); });
+        document.addEventListener("click", (e) => {
+          if (!els.settingsPopover.contains(e.target) && !els.settingsGearBtn.contains(e.target)) toggleSettingsPopover(false);
+          if (!els.exportPopover.contains(e.target) && !els.exportMenuBtn.contains(e.target)) toggleExportPopover(false);
+        });
+        window.addEventListener("resize", () => {
+          if (!els.exportPopover.classList.contains("popover-hidden")) {
+            positionHeaderPopover(els.exportPopover, els.exportMenuBtn, 290);
+          }
+          if (!els.settingsPopover.classList.contains("popover-hidden")) {
+            positionHeaderPopover(els.settingsPopover, els.settingsGearBtn, 345);
+          }
+        });
+        els.popoverApiKeyInput.addEventListener("input", (e) => {
+          state.userApiKey = e.target.value.trim();
+          try {
+            if (state.userApiKey) localStorage.setItem(STORAGE_API_KEY, state.userApiKey);
+            else localStorage.removeItem(STORAGE_API_KEY);
+          } catch (_) {}
+        });
+
         [els.barSpokenSelect, els.popoverSpokenSelect].forEach((sel) => sel.addEventListener("change", (e) => setLanguagePair(e.target.value, state.targetLang)));
         [els.barTargetSelect, els.popoverTargetSelect].forEach((sel) => sel.addEventListener("change", (e) => setLanguagePair(state.spokenLang, e.target.value)));
         els.swapLangBtn.addEventListener("click", swapLanguagePair);
@@ -1384,6 +2970,7 @@
         els.clearTranscriptBtn.addEventListener("click", handleClearTranscript);
         els.dismissFallbackBtn.addEventListener("click", () => els.micFallbackBanner.classList.add("hidden"));
         els.teamsMicBtn.addEventListener("click", toggleMicrophone);
+
         function submitManualInput() {
           const text = els.manualTextInput.value.trim();
           if (!text) { els.manualTextInput.focus(); return; }
@@ -1406,6 +2993,14 @@
 
       window.onload = function () {
         try {
+          try {
+            const savedKey = localStorage.getItem(STORAGE_API_KEY);
+            if (savedKey) {
+              state.userApiKey = savedKey;
+              els.popoverApiKeyInput.value = savedKey;
+            }
+          } catch (_) {}
+
           const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
           state.speechSupported = Boolean(SpeechRecognition);
           if (!state.speechSupported) {
